@@ -106,6 +106,11 @@ public static class ProfileService
         profile.Port = InputRules.RequirePort(profile.Port, nameof(SshProfile.Port), "SSH-Port");
         profile.Description = (profile.Description ?? "").Trim();
 
+        if (profile.AuthenticationMethod != SshAuthenticationMethod.Password)
+        {
+            profile.SetUpKeyOnFirstLogin = false;
+        }
+
         if (profile.AuthenticationMethod != SshAuthenticationMethod.KeyFile)
         {
             profile.KeyFilePath = "";

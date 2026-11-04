@@ -31,6 +31,8 @@ verwaltet den Prozess im Hintergrund und zeigt den Zustand im Fenster und im Tra
 | Tunnelrouten | Beliebig viele Hops (bis 10) in fester Reihenfolge, je eine lokale TCP-Portweiterleitung. |
 | Verbinden | Status je Route (Verbunden, Verbindet, Wartet, Fehler) mit verständlicher Fehlermeldung und dem entsprechenden ssh-Befehl. |
 | Anmeldung | Passwörter, Passphrasen und unbekannte Hostschlüssel werden beim **manuellen** Verbinden per Dialog abgefragt (SSH_ASKPASS) und nie gespeichert. Geänderte Hostschlüssel werden immer abgelehnt. |
+| Schlüssel einrichten | Passwort-Profil mit „Beim ersten Anmelden einen Schlüssel anlegen und hinterlegen“: beim nächsten manuellen Verbinden einmal Passwort, dann erzeugt ThixTunnel einen eigenen ed25519-Schlüssel (`%AppData%ThixTunnelkeys`), trägt ihn – auch durch Sprungserver – in `~/.ssh/authorized_keys` ein und stellt das Profil auf diesen Schlüssel um. Linux-/Unix-Server. |
+| Mehrere Hops | Client ↔ A ↔ B: eine Verbindung mit Hop 1 = Profil A (Sprungserver), Hop 2 = Profil B. Jeder Hop meldet sich mit eigenem Profil an, alle Schlüssel bleiben auf dem PC (`ssh -J`). |
 | Automatik | Pro Route: beim App-Start verbinden und nach Abbruch erneut verbinden (wachsende Pausen, sofortiger Versuch bei Netzwerkwechsel und nach Standby). Automatische Versuche fragen nie nach. |
 | Tray | Statuspunkt im Symbol, Tooltip, Menü mit allen Tunneln, „Automatik pausieren“, Einstellungen, Beenden. |
 | Fenster | Fenster-X lässt die Tunnel im Tray weiterlaufen (einstellbar); „Beenden“ trennt alle Tunnel. Ein zweiter Programmstart öffnet das vorhandene Fenster. |

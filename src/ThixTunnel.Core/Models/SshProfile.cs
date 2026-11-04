@@ -31,6 +31,12 @@ public sealed class SshProfile
     /// <summary>Path of the private key; only used with <see cref="SshAuthenticationMethod.KeyFile"/>.</summary>
     public string KeyFilePath { get; set; } = "";
 
+    /// <summary>
+    /// Only with <see cref="SshAuthenticationMethod.Password"/>: at the next manual connect ThixTunnel creates a key of its own,
+    /// adds it to ~/.ssh/authorized_keys on the server (one password prompt) and switches the profile to that key file.
+    /// </summary>
+    public bool SetUpKeyOnFirstLogin { get; set; }
+
     public string Description { get; set; } = "";
 
     public string DisplayAddress => Port == 22 ? $"{UserName}@{HostName}" : $"{UserName}@{HostName}:{Port}";

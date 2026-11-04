@@ -39,7 +39,7 @@ public partial class TunnelEditPage : UserControl, IDisposable
         ReconnectToggle.IsChecked = _route.ReconnectOnFailure;
         DeleteButton.Visibility = _isNew ? Visibility.Collapsed : Visibility.Visible;
         AutomationHint.Show("Automatische Verbindungen fragen nie nach Passwörtern oder Hostschlüsseln. " +
-                            "Für alle Hops werden Schlüssel (SSH-Agent oder Schlüsseldatei) benötigt; unbekannte Hostschlüssel einmal manuell bestätigen.",
+                            "Für alle Hops werden Schlüssel benötigt (SSH-Agent, Schlüsseldatei oder ein Passwort-Profil mit „Schlüssel beim ersten Anmelden anlegen“); unbekannte Hostschlüssel einmal manuell bestätigen.",
                             InfoSeverity.Info);
 
         if (_profiles.Count == 0)

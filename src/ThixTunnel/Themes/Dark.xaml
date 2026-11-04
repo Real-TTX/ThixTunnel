@@ -441,13 +441,14 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="RadioButton">
-          <StackPanel Orientation="Horizontal" Background="Transparent">
-            <Grid Width="18" Height="18" VerticalAlignment="Top" Margin="0,1,10,0">
+          <!-- DockPanel, not a horizontal StackPanel: the description wraps instead of being cut off -->
+          <DockPanel Background="Transparent">
+            <Grid DockPanel.Dock="Left" Width="18" Height="18" VerticalAlignment="Top" Margin="0,1,10,0">
               <Ellipse x:Name="Ring" Stroke="{StaticResource BorderBrush}" StrokeThickness="2" />
               <Ellipse x:Name="Dot" Width="8" Height="8" Fill="{StaticResource AccentBrush}" Visibility="Collapsed" />
             </Grid>
             <ContentPresenter VerticalAlignment="Center" />
-          </StackPanel>
+          </DockPanel>
           <ControlTemplate.Triggers>
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource AccentBrush}" />
@@ -472,13 +473,16 @@
               <!-- WrapPanel instead of TabPanel: in a narrow window the tabs wrap but keep their order -->
               <WrapPanel IsItemsHost="True" />
             </Border>
-            <ContentPresenter ContentSource="SelectedContent" Margin="{TemplateBinding Padding}" />
+            <!-- PART_SelectedContentHost: WPF exposes the tab content to screen readers and UI automation through this name -->
+            <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" Margin="{TemplateBinding Padding}" />
           </DockPanel>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
   </Style>
   <Style TargetType="TabItem">
+    <!-- Screen readers read the tab by its text (the header is an IconLabel) -->
+    <Setter Property="AutomationProperties.Name" Value="{Binding Header.Text, RelativeSource={RelativeSource Self}}" />
     <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
     <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
     <Setter Property="FontSize" Value="14" />

@@ -162,3 +162,61 @@ public sealed class BusinessLayerTests : IDisposable
         Assert.False(UpdateService.IsNewer(manifest, "nightly", 12));
     }
 }
+
+[Collection(SharedStateCollection.Name)]
+public sealed class KeySetupTests : IDisposable
+{
+    private const string PublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHf0dpvYm1V3x4l0wXhD4n2m5Q0r5uHkQ8p7r3W2j1Ab thixtunnel-PC-Server";
+
+    private readonly TestData _data = new();
+
+    public void Dispose() => _data.Dispose();
+
+    [Fact]
+    public void TheServerCommandAddsTheKeyOnlyOnce()
+    {
+        var command = KeySetupService.AuthorizeCommand(PublicKey);
+
+        Assert.StartsWith("umask 077 && mkdir -p ~/.ssh", command);
+        Assert.Contains($"grep -qxF '{PublicKey}' ~/.ssh/authorized_keys || echo '{PublicKey}' >> ~/.ssh/authorized_keys", command);
+    }
+
+    [Theory]
+    [InlineData("ssh-ed25519 AAAA thix'; rm -rf ~ #")]
+    [InlineData("ssh-rsa AAAA comment")]
+    [InlineData("")]
+    public void UnexpectedPublicKeysNeverReachTheServerCommand(string publicKey) =>
+        Assert.Throws<BusinessException>(() => KeySetupService.AuthorizeCommand(publicKey));
+
+    [Fact]
+    public void OnlyPasswordProfilesKeepTheKeySetupOption()
+    {
+        var password = ProfileService.Save(new SshProfile
+        {
+            Name = "Server", HostName = "10.0.0.24", UserName = "admin",
+            AuthenticationMethod = SshAuthenticationMethod.Password, SetUpKeyOnFirstLogin = true,
+        });
+        var agent = ProfileService.Save(new SshProfile { Name = "Gateway", HostName = "gw", UserName = "admin", SetUpKeyOnFirstLogin = true });
+
+        Assert.True(KeySetupService.NeedsSetup(password));
+        Assert.False(agent.SetUpKeyOnFirstLogin);
+        Assert.False(KeySetupService.NeedsSetup(agent));
+    }
+
+    [Fact]
+    public void ALockedConfigurationSetsUpNoKeys()
+    {
+        var profile = ProfileService.Save(new SshProfile
+        {
+            Name = "Server", HostName = "10.0.0.24", UserName = "admin",
+            AuthenticationMethod = SshAuthenticationMethod.Password, SetUpKeyOnFirstLogin = true,
+        });
+        AccessPolicy.UsePolicyReaderForTests(name => name == "LockConfiguration");
+
+        Assert.False(KeySetupService.NeedsSetup(profile));
+    }
+
+    [Fact]
+    public void KeysLiveWithTheUserDataOfThixTunnel() =>
+        Assert.StartsWith(Path.Combine(AppPaths.DataDirectory, "keys"), KeySetupService.KeyFileFor(Guid.NewGuid()));
+}

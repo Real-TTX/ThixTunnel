@@ -24,6 +24,21 @@ internal static class SshCommandBuilder
         return arguments;
     }
 
+    /// <summary>ssh -F file.conf [-J hop1,..] hopN "command": runs one command on the last hop (key setup), no tunnel.</summary>
+    public static IReadOnlyList<string> BuildCommandArguments(int hopCount, string configFileName, string remoteCommand)
+    {
+        var arguments = new List<string> { "-F", configFileName, "-T" };
+        if (hopCount > 1)
+        {
+            arguments.Add("-J");
+            arguments.Add(string.Join(',', Enumerable.Range(0, hopCount - 1).Select(SshConfigWriter.HostAlias)));
+        }
+
+        arguments.Add(SshConfigWriter.HostAlias(hopCount - 1));
+        arguments.Add(remoteCommand);
+        return arguments;
+    }
+
     /// <summary>The command a user could type, for the details view (with the real addresses instead of aliases).</summary>
     public static string DescribeCommand(TunnelRoute route, IReadOnlyList<SshProfile> hops)
     {

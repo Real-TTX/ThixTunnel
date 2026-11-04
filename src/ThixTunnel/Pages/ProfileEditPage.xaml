@@ -82,10 +82,16 @@
                   <RadioButton x:Name="PasswordOption" Style="{StaticResource OptionRadio}" GroupName="Auth" Checked="OnAuthenticationChanged">
                     <StackPanel>
                       <TextBlock Text="Passwort" />
-                      <TextBlock Style="{StaticResource MutedText}" Text="Wird bei jedem manuellen Verbinden abgefragt und nicht gespeichert. Nicht für automatische Verbindungen geeignet." />
+                      <TextBlock Style="{StaticResource MutedText}" Text="Wird bei jedem manuellen Verbinden abgefragt und nicht gespeichert. Für automatische Verbindungen: unten einen Schlüssel anlegen lassen." />
                     </StackPanel>
                   </RadioButton>
                 </StackPanel>
+              </Border>
+
+              <!-- Only for the password method -->
+              <Border x:Name="KeySetupTile" Style="{StaticResource Tile}" Padding="20,4">
+                <controls:SettingToggle x:Name="KeySetupToggle" BorderThickness="0" Title="Beim ersten Anmelden einen Schlüssel anlegen und hinterlegen"
+                                        Description="Beim nächsten manuellen Verbinden fragt ThixTunnel einmal nach dem Passwort, erzeugt einen eigenen Schlüssel und trägt ihn auf dem Server in ~/.ssh/authorized_keys ein. Danach verbindet das Profil ohne Passwort – auch automatisch. Nur für Linux-/Unix-Server." />
               </Border>
 
               <!-- Only for the key file method -->

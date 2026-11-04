@@ -103,6 +103,53 @@ public sealed class EndToEndTests : IDisposable
         Assert.Contains("nginx", await http.GetStringAsync($"http://127.0.0.1:{route.LocalPort}/"));
     }
 
+    [EndToEndFact]
+    public async Task APasswordProfileGetsItsKeyAtTheFirstManualConnect()
+    {
+        // The "password dialog" of the test answers with the password of the user "setup" on hop2.
+        var askPass = Path.Combine(_data.Directory, "askpass.cmd");
+        File.WriteAllText(askPass, "@echo e2e-passwort\r\n");
+        TunnelManager.AskPassProgram = askPass;
+        var key = Environment.GetEnvironmentVariable("THIXTUNNEL_E2E_KEY")!;
+        var hop1 = ProfileService.Save(new SshProfile
+        {
+            Name = "Sprungserver", HostName = "127.0.0.1", Port = 22221, UserName = "tunnel",
+            AuthenticationMethod = SshAuthenticationMethod.KeyFile, KeyFilePath = key,
+        });
+        var hop2 = ProfileService.Save(new SshProfile
+        {
+            Name = "Zielserver", HostName = "hop2", UserName = "setup",
+            AuthenticationMethod = SshAuthenticationMethod.Password, SetUpKeyOnFirstLogin = true,
+        });
+        var route = RouteService.Save(new TunnelRoute
+        {
+            Name = "Mit Schlüssel-Einrichtung", HopProfileIds = [hop1.Id, hop2.Id], LocalPort = FreePort(), TargetHost = "web", TargetPort = 80,
+        });
+
+        try
+        {
+            TunnelManager.Connect(route.Id); // manual: the one time the password is used
+            await WaitForAsync(route.Id, TunnelState.Connected);
+
+            var converted = ProfileService.Get(hop2.Id)!;
+            Assert.Equal(SshAuthenticationMethod.KeyFile, converted.AuthenticationMethod);
+            Assert.False(converted.SetUpKeyOnFirstLogin);
+            Assert.True(File.Exists(converted.KeyFilePath));
+
+            // Automatic connects never prompt: this one only works with the key that is now on the server.
+            TunnelManager.Disconnect(route.Id);
+            TunnelManager.AskPassProgram = null;
+            TunnelManager.ConnectAutomatically(route.Id);
+            await WaitForAsync(route.Id, TunnelState.Connected);
+            using var http = new HttpClient();
+            Assert.Contains("nginx", await http.GetStringAsync($"http://127.0.0.1:{route.LocalPort}/"));
+        }
+        finally
+        {
+            TunnelManager.AskPassProgram = null;
+        }
+    }
+
     private TunnelRoute CreateRoute(int sshPortOfHop1)
     {
         var key = Environment.GetEnvironmentVariable("THIXTUNNEL_E2E_KEY")!;

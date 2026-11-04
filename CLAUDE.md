@@ -31,7 +31,9 @@ src/ThixTunnel.Core
                      SettingsService, AutostartService (HKCU Run, "--autostart"), TunnelManager (sessions, states, retries, pause),
                      UpdateService (manifest, download, SHA-256, starts the new exe with "--update"), SessionResume (reconnect
                      after an update), TransferService (import/export *.thixtunnel.json, same checks as saving, one atomic write),
-                     InstallService (self-installing exe: program folder, shortcuts, "Installierte Apps" entry, uninstall)
+                     InstallService (self-installing exe: program folder, shortcuts, "Installierte Apps" entry, uninstall),
+                     KeySetupService (password profile -> own ed25519 key via ssh-keygen, authorized_keys through the jump
+                     hosts at the first manual connect, profile switched to the key; POSIX servers only)
   Infrastructure/    DataStore (only the business layer uses it; atomic JSON writes), AppPaths, AppInfo (version/channel from
                      assembly metadata), SshConfigWriter (per-connection config; -F reaches the jump hosts, -o does not),
                      SshCommandBuilder, SshProcess, SshErrorClassifier, ProcessJob (kill-on-close job object), NetworkProbe,

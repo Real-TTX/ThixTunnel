@@ -204,6 +204,28 @@ public static class TunnelManager
     private static async Task RunAsync(Session session, TunnelRoute route, IReadOnlyList<SshProfile> hops, bool interactive, int attempt)
     {
         var token = session.Cancellation.Token;
+        if (interactive && AskPassProgram is not null && hops.Any(KeySetupService.NeedsSetup))
+        {
+            var setUp = await SetUpKeysAsync(session, route, hops, token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (setUp is null)
+            {
+                return; // ssh missing - reported already
+            }
+
+            if (!setUp.Succeeded)
+            {
+                EndSession(session, new TunnelStatus(route.Id, TunnelState.Failed, setUp.Problem, setUp.Message, DateTimeOffset.Now));
+                return;
+            }
+
+            hops = setUp.Hops;
+        }
+
         while (!token.IsCancellationRequested)
         {
             var result = await RunOnceAsync(session, route, hops, interactive, attempt, token);
@@ -249,6 +271,23 @@ public static class TunnelManager
             hops = RouteService.GetHops(route);
             interactive = false;
         }
+    }
+
+    /// <summary>Key setup of password profiles before the first manual connect (KeySetupService); null when ssh is missing.</summary>
+    private static async Task<KeySetupResult?> SetUpKeysAsync(Session session, TunnelRoute route, IReadOnlyList<SshProfile> hops, CancellationToken token)
+    {
+        var ssh = SshExecutable.Find(SettingsService.Get().SshExecutablePath);
+        if (ssh is null)
+        {
+            EndSession(session, new TunnelStatus(route.Id, TunnelState.Failed, TunnelProblem.SshNotFound,
+                SshErrorClassifier.Describe(TunnelProblem.SshNotFound), DateTimeOffset.Now));
+            return null;
+        }
+
+        return await KeySetupService.SetUpAsync(ssh, AskPassProgram!, route, hops,
+            message => SetStatus(new TunnelStatus(route.Id, TunnelState.Connecting, TunnelProblem.None, message, DateTimeOffset.Now), session),
+            process => session.Process = process,
+            token);
     }
 
     private static async Task<AttemptResult> RunOnceAsync(Session session, TunnelRoute route, IReadOnlyList<SshProfile> hops,

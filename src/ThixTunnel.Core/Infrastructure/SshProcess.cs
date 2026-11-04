@@ -34,7 +34,24 @@ internal sealed class SshProcess : IDisposable
     public static SshProcess Start(string sshExecutable, TunnelRoute route, IReadOnlyList<SshProfile> hops, bool interactive, string? askPassProgram)
     {
         var configFileName = SshConfigWriter.Write(route.Id, hops, interactive && askPassProgram is not null);
+        return Launch(sshExecutable, SshCommandBuilder.BuildArguments(route, hops.Count, configFileName), interactive ? askPassProgram : null, route.Name);
+    }
 
+    /// <summary>
+    /// Runs one command on the last of <paramref name="hops"/> (the earlier ones are jump hosts), always with prompts.
+    /// <paramref name="configId"/> names its own configuration file, so a running tunnel of the same route is not touched.
+    /// </summary>
+    public static SshProcess StartCommand(string sshExecutable, Guid configId, IReadOnlyList<SshProfile> hops, string remoteCommand,
+        string askPassProgram, string promptTitle)
+    {
+        var configFileName = SshConfigWriter.Write(configId, hops, interactive: true);
+        return Launch(sshExecutable, SshCommandBuilder.BuildCommandArguments(hops.Count, configFileName, remoteCommand), askPassProgram, promptTitle);
+    }
+
+    public int ExitCode => _process.ExitCode;
+
+    private static SshProcess Launch(string sshExecutable, IReadOnlyList<string> arguments, string? askPassProgram, string promptTitle)
+    {
         var startInfo = new ProcessStartInfo(sshExecutable)
         {
             WorkingDirectory = AppPaths.SshConfigDirectory,
@@ -46,17 +63,17 @@ internal sealed class SshProcess : IDisposable
             StandardErrorEncoding = Encoding.UTF8,
         };
 
-        foreach (var argument in SshCommandBuilder.BuildArguments(route, hops.Count, configFileName))
+        foreach (var argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
         }
 
-        if (interactive && askPassProgram is not null)
+        if (askPassProgram is not null)
         {
             startInfo.Environment["SSH_ASKPASS"] = askPassProgram;
             startInfo.Environment["SSH_ASKPASS_REQUIRE"] = "force";
             startInfo.Environment["DISPLAY"] = ":0";
-            startInfo.Environment[AskPassProtocol.EnvironmentVariable] = route.Name;
+            startInfo.Environment[AskPassProtocol.EnvironmentVariable] = promptTitle;
         }
 
         var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };

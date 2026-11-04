@@ -29,6 +29,7 @@ public partial class ProfileEditPage : UserControl
         UserBox.Text = _profile.UserName;
         DescriptionBox.Text = _profile.Description;
         KeyFileBox.Text = _profile.KeyFilePath;
+        KeySetupToggle.IsChecked = _profile.SetUpKeyOnFirstLogin;
         AgentOption.IsChecked = _profile.AuthenticationMethod == SshAuthenticationMethod.Agent;
         KeyFileOption.IsChecked = _profile.AuthenticationMethod == SshAuthenticationMethod.KeyFile;
         PasswordOption.IsChecked = _profile.AuthenticationMethod == SshAuthenticationMethod.Password;
@@ -59,6 +60,11 @@ public partial class ProfileEditPage : UserControl
         {
             KeyFileTile.Visibility = SelectedMethod == SshAuthenticationMethod.KeyFile ? Visibility.Visible : Visibility.Collapsed;
         }
+
+        if (KeySetupTile is not null)
+        {
+            KeySetupTile.Visibility = SelectedMethod == SshAuthenticationMethod.Password ? Visibility.Visible : Visibility.Collapsed;
+        }
     }
 
     private void OnAuthenticationChanged(object sender, RoutedEventArgs e) => RefreshAuthentication();
@@ -88,6 +94,7 @@ public partial class ProfileEditPage : UserControl
         profile.Description = DescriptionBox.Text;
         profile.AuthenticationMethod = SelectedMethod;
         profile.KeyFilePath = KeyFileBox.Text;
+        profile.SetUpKeyOnFirstLogin = KeySetupToggle.IsChecked;
 
         SshProfile? saved = null;
         if (PageActions.Run(() => saved = ProfileService.Save(profile), MessageBar, Form))
