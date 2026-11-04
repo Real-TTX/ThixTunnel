@@ -43,33 +43,70 @@ public sealed class ActionBar : Panel
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        double width = 0;
-        double height = 0;
         foreach (var child in VisibleChildren())
         {
-            child.Measure(new Size(double.PositiveInfinity, availableSize.Height));
-            width += GapBefore(child, width) + child.DesiredSize.Width;
-            height = Math.Max(height, child.DesiredSize.Height);
+            child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         }
 
-        return new Size(width, height);
+        var lines = Layout(availableSize.Width);
+        var width = lines.Count == 0 ? 0 : lines.Max(line => line.Width);
+        return new Size(width, lines.Sum(line => line.Height) + Math.Max(0, lines.Count - 1) * Spacing);
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        double x = 0;
-        foreach (var child in VisibleChildren())
+        double y = 0;
+        foreach (var line in Layout(finalSize.Width))
         {
-            x += GapBefore(child, x);
-            child.Arrange(new Rect(x, 0, child.DesiredSize.Width, finalSize.Height));
-            x += child.DesiredSize.Width;
+            foreach (var (child, x) in line.Items)
+            {
+                child.Arrange(new Rect(x, y, child.DesiredSize.Width, line.Height));
+            }
+
+            y += line.Height + Spacing;
         }
 
         return finalSize;
     }
 
+    /// <summary>
+    /// In one line while it fits; in a narrow window the buttons continue on the next line (order unchanged).
+    /// </summary>
+    private List<Line> Layout(double availableWidth)
+    {
+        var lines = new List<Line>();
+        var current = new Line();
+        foreach (var child in VisibleChildren())
+        {
+            var gap = current.Items.Count == 0 ? 0 : GetSeparated(child) ? Separation : Spacing;
+            if (current.Items.Count > 0 && current.Width + gap + child.DesiredSize.Width > availableWidth)
+            {
+                lines.Add(current);
+                current = new Line();
+                gap = 0;
+            }
+
+            current.Items.Add((child, current.Width + gap));
+            current.Width += gap + child.DesiredSize.Width;
+            current.Height = Math.Max(current.Height, child.DesiredSize.Height);
+        }
+
+        if (current.Items.Count > 0)
+        {
+            lines.Add(current);
+        }
+
+        return lines;
+    }
+
     private IEnumerable<UIElement> VisibleChildren() => InternalChildren.Cast<UIElement>().Where(child => child.Visibility != Visibility.Collapsed);
 
-    private double GapBefore(UIElement child, double position) =>
-        position == 0 ? 0 : GetSeparated(child) ? Separation : Spacing;
+    private sealed class Line
+    {
+        public List<(UIElement Child, double X)> Items { get; } = [];
+
+        public double Width { get; set; }
+
+        public double Height { get; set; }
+    }
 }

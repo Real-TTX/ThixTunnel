@@ -137,7 +137,8 @@ internal sealed class TrayIcon : IDisposable
                 item.DropDownItems.Add("Verbinden", null, (_, _) => Connect(routeId));
             }
 
-            item.DropDownItems.Add("Details", null, (_, _) => _app.ShowMainWindow(window => window.ShowTunnels(routeId)));
+            item.DropDownItems.Add("In der Liste zeigen", null, (_, _) => _app.ShowMainWindow(window => window.SelectRoute(routeId)));
+            item.DropDownItems.Add("Bearbeiten …", null, (_, _) => AppWindows.ShowRouteEditor(routeId));
             item.DropDown.Renderer = _menu.Renderer;
             _menu.Items.Add(item);
         }
@@ -147,10 +148,10 @@ internal sealed class TrayIcon : IDisposable
         pause.Text = TunnelManager.AutomationPaused ? "✓  Automatik pausiert" : "Automatik pausieren";
         pause.Click += (_, _) => TunnelManager.SetAutomationPaused(!TunnelManager.AutomationPaused);
         _menu.Items.Add(pause);
-        _menu.Items.Add("Einstellungen", null, (_, _) => _app.ShowMainWindow(window => window.ShowSettings()));
+        _menu.Items.Add("Einstellungen", null, (_, _) => AppWindows.ShowSettings());
         if (_updateAvailable)
         {
-            _menu.Items.Add("Update installieren …", null, (_, _) => _app.ShowMainWindow(window => window.ShowSettings(1)));
+            _menu.Items.Add("Update installieren …", null, (_, _) => AppWindows.ShowSettings(Pages.SettingsPage.UpdatesTab));
         }
 
         _menu.Items.Add(new Forms.ToolStripSeparator());

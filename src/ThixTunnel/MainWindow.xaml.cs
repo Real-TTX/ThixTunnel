@@ -1,67 +1,34 @@
 using System.ComponentModel;
 using System.Windows;
-using System.Windows.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Infrastructure;
 using ThixTunnel.Core.Models;
-using ThixTunnel.Pages;
 
 namespace ThixTunnel;
 
-/// <summary>The main window: side bar navigation and the page area. Closing hides it while the tray keeps running.</summary>
+/// <summary>
+/// The main window: the connection list, narrow and tall like a contact list. It opens at the right edge of the
+/// screen and never gets larger than the screen. Closing hides it while the tray keeps running.
+/// </summary>
 public partial class MainWindow : Window
 {
+    private const double ScreenMargin = 16;
+
     public MainWindow()
     {
         InitializeComponent();
         VersionText.Text = AppInfo.Version;
         NativeWindow.ApplyTheme(this);
+        PlaceAtRightEdge();
         TunnelManager.StatusChanged += (_, _) => Dispatcher.BeginInvoke(RefreshStatus);
         RefreshStatus();
-        ShowTunnels();
     }
 
     /// <summary>Set by the application when it really ends (tray "Beenden"); then closing is not cancelled.</summary>
     public bool IsExiting { get; set; }
 
-    private bool _isSelectingNavigation;
-    private bool _navigatedByChecked;
-
-    public void ShowTunnels(Guid? selectRouteId = null)
-    {
-        SelectNavigation(NavTunnels);
-        Navigate(new TunnelListPage(this, selectRouteId));
-    }
-
-    public void EditRoute(Guid? routeId)
-    {
-        SelectNavigation(NavTunnels);
-        Navigate(new TunnelEditPage(this, routeId));
-    }
-
-    public void ShowProfiles(Guid? selectProfileId = null)
-    {
-        SelectNavigation(NavProfiles);
-        Navigate(new ProfileListPage(this, selectProfileId));
-    }
-
-    public void EditProfile(Guid? profileId)
-    {
-        SelectNavigation(NavProfiles);
-        Navigate(new ProfileEditPage(this, profileId));
-    }
-
-    public void ShowSettings(int tabIndex = 0)
-    {
-        SelectNavigation(NavSettings);
-        Navigate(new SettingsPage(this, tabIndex));
-    }
-
-    public void ShowAbout()
-    {
-        SelectNavigation(null);
-        Navigate(new AboutPage(this));
-    }
+    /// <summary>Selects a connection (tray "Details").</summary>
+    public void SelectRoute(Guid routeId) => Connections.Select(routeId);
 
     /// <summary>Brings the window to the front (tray, second program start).</summary>
     public void BringToFront()
@@ -96,16 +63,24 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
+        Connections.Dispose();
         if (!IsExiting)
         {
             ((App)Application.Current).ExitApplication();
         }
     }
 
-    private void Navigate(UserControl page)
+    /// <summary>Right edge of the work area, vertically centred; on small screens as high as the screen allows.</summary>
+    private void PlaceAtRightEdge()
     {
-        (PageHost.Content as IDisposable)?.Dispose();
-        PageHost.Content = page;
+        var workArea = SystemParameters.WorkArea;
+        Height = Math.Min(Height, workArea.Height - 2 * ScreenMargin);
+        Width = Math.Min(Width, workArea.Width - 2 * ScreenMargin);
+        MinHeight = Math.Min(MinHeight, Height);
+        MinWidth = Math.Min(MinWidth, Width);
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = workArea.Right - Width - ScreenMargin;
+        Top = workArea.Top + (workArea.Height - Height) / 2;
     }
 
     private void RefreshStatus()
@@ -126,63 +101,19 @@ public partial class MainWindow : Window
             StatusText.Text += failed == 1 ? " · 1 Fehler" : $" · {failed} Fehler";
         }
 
+        if (TunnelManager.AutomationPaused)
+        {
+            StatusText.Text += " · Automatik pausiert";
+        }
+
         var brush = failed > 0 ? "DangerBrush" : waiting > 0 ? "WarningBrush" : connected > 0 ? "SuccessBrush" : "TextMutedBrush";
         StatusDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, brush);
     }
 
-    /// <summary>Marks the side bar entry without triggering its navigation (null = none, e.g. the about page).</summary>
-    private void SelectNavigation(RadioButton? entry)
-    {
-        _isSelectingNavigation = true;
-        foreach (var candidate in new[] { NavTunnels, NavProfiles, NavSettings })
-        {
-            candidate.IsChecked = candidate == entry;
-        }
 
-        _isSelectingNavigation = false;
-    }
+    private void OnSettingsClick(object sender, RoutedEventArgs e) => AppWindows.ShowSettings();
 
-    // Checked covers mouse, keyboard and UI automation; Click covers clicking the entry that is already selected
-    // (e.g. "Tunnel" while editing a route). A mouse click raises Checked first, then Click - navigate only once.
-    private void OnNavChecked(object sender, RoutedEventArgs e)
-    {
-        if (_isSelectingNavigation)
-        {
-            return;
-        }
+    private void OnVersionClick(object sender, RoutedEventArgs e) => AppWindows.ShowAbout();
 
-        _navigatedByChecked = true;
-        NavigateTo(sender);
-    }
-
-    private void OnNavClick(object sender, RoutedEventArgs e)
-    {
-        if (_navigatedByChecked)
-        {
-            _navigatedByChecked = false;
-            return;
-        }
-
-        NavigateTo(sender);
-    }
-
-    private void NavigateTo(object entry)
-    {
-        if (entry == NavTunnels)
-        {
-            ShowTunnels();
-        }
-        else if (entry == NavProfiles)
-        {
-            ShowProfiles();
-        }
-        else
-        {
-            ShowSettings();
-        }
-    }
-
-    private void OnVersionClick(object sender, RoutedEventArgs e) => ShowAbout();
-
-    private void OnUpdateHintClick(object sender, RoutedEventArgs e) => ShowSettings(1);
+    private void OnUpdateHintClick(object sender, RoutedEventArgs e) => AppWindows.ShowSettings(Pages.SettingsPage.UpdatesTab);
 }

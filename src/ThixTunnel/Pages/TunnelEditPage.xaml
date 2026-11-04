@@ -9,7 +9,7 @@
   </UserControl.Resources>
   <DockPanel>
     <!-- Buttons: save, back, (gap) delete -->
-    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="32,14">
+    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="20,12">
       <controls:ActionBar>
         <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" Click="OnSaveClick" IsDefault="True">
           <controls:IconLabel Icon="{StaticResource IconSave}" Text="Speichern" />
@@ -27,8 +27,8 @@
     </Border>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-      <StackPanel x:Name="Form" Margin="32,24,32,24">
-        <controls:PageHeader x:Name="Header" ParentTitle="Tunnel" Title="Tunnelroute bearbeiten" />
+      <StackPanel x:Name="Form" Margin="20,16,20,20">
+        <controls:PageHeader x:Name="Header" Title="Tunnelroute bearbeiten" />
         <controls:InfoBar x:Name="MessageBar" />
 
         <TabControl x:Name="Tabs">
@@ -38,7 +38,7 @@
               <controls:IconLabel Icon="{StaticResource IconTunnel}" Text="Route" />
             </TabItem.Header>
             <StackPanel>
-              <controls:FormField Header="Name" Field="Name" MaxWidth="560" HorizontalAlignment="Left" Width="560">
+              <controls:FormField Header="Name" Field="Name">
                 <TextBox x:Name="NameBox" />
               </controls:FormField>
 

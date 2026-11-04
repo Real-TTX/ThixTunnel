@@ -11,22 +11,18 @@ namespace ThixTunnel.Pages;
 /// <summary>Create or change an SSH profile: tabs "Allgemein" and "Authentifizierung".</summary>
 public partial class ProfileEditPage : UserControl
 {
-    private readonly MainWindow _window;
     private readonly SshProfile _profile;
     private readonly bool _isNew;
 
-    public ProfileEditPage(MainWindow window, Guid? profileId)
+    public ProfileEditPage(Guid? profileId)
     {
-        _window = window;
         InitializeComponent();
-        Header.ParentClicked += (_, _) => GoBack();
 
         var existing = profileId is null ? null : ProfileService.Get(profileId.Value);
         _isNew = existing is null;
         _profile = existing ?? new SshProfile { UserName = Environment.UserName.ToLowerInvariant() };
 
         Header.Title = _isNew ? "Neues SSH-Profil" : "SSH-Profil bearbeiten";
-        Header.CurrentCrumb = _isNew ? "Neu" : _profile.Name;
         NameBox.Text = _profile.Name;
         HostBox.Text = _profile.HostName;
         PortBox.Text = _profile.Port.ToString();
@@ -76,7 +72,7 @@ public partial class ProfileEditPage : UserControl
             InitialDirectory = Directory.Exists(sshDirectory) ? sshDirectory : "",
             Filter = "Alle Dateien (*.*)|*.*",
         };
-        if (dialog.ShowDialog(_window) == true)
+        if (dialog.ShowDialog(Window.GetWindow(this)) == true)
         {
             KeyFileBox.Text = dialog.FileName;
         }
@@ -96,7 +92,8 @@ public partial class ProfileEditPage : UserControl
         SshProfile? saved = null;
         if (PageActions.Run(() => saved = ProfileService.Save(profile), MessageBar, Form))
         {
-            _window.ShowProfiles(saved!.Id);
+            AppWindows.NotifyDataChanged();
+            GoBack();
             return;
         }
 
@@ -109,14 +106,15 @@ public partial class ProfileEditPage : UserControl
 
     private void OnBackClick(object sender, RoutedEventArgs e) => GoBack();
 
-    private void GoBack() => _window.ShowProfiles(_isNew ? null : _profile.Id);
+    private void GoBack() => PageWindow.CloseHostOf(this);
 
     private void OnDeleteClick(object sender, RoutedEventArgs e)
     {
-        if (ConfirmDialog.Ask(_window, "SSH-Profil löschen", $"„{_profile.Name}“ wird gelöscht.", "Löschen", isDestructive: true) &&
+        if (ConfirmDialog.Ask(Window.GetWindow(this), "SSH-Profil löschen", $"„{_profile.Name}“ wird gelöscht.", "Löschen", isDestructive: true) &&
             PageActions.Run(() => ProfileService.Delete(_profile.Id), MessageBar))
         {
-            _window.ShowProfiles();
+            AppWindows.NotifyDataChanged();
+            GoBack();
         }
     }
 }

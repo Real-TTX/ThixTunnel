@@ -22,15 +22,24 @@ public static class AutostartService
     public static void Enable(string executablePath)
     {
         AccessPolicy.EnsureConfigurationEditable();
-
-        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
-        key.SetValue(ValueName, $"\"{executablePath}\" {StartupArgument}");
+        WriteEntry(executablePath);
     }
 
     public static void Disable()
     {
         AccessPolicy.EnsureConfigurationEditable();
+        RemoveEntry();
+    }
 
+    /// <summary>For the setup: installing and uninstalling the user's own program is not a configuration change.</summary>
+    internal static void WriteEntry(string executablePath)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
+        key.SetValue(ValueName, $"\"{executablePath}\" {StartupArgument}");
+    }
+
+    internal static void RemoveEntry()
+    {
         using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
         key?.DeleteValue(ValueName, throwOnMissingValue: false);
     }

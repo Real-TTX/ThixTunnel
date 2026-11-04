@@ -23,8 +23,8 @@ public sealed record UpdateCheckResult(bool IsUpdateAvailable, string Message, U
 /// replaces: "release-channel" (branch main) and "nightly-channel" (branch dev). A build only looks at its own channel;
 /// local builds never update themselves.
 ///
-/// The update is the normal setup started silently: it closes ThixTunnel, replaces the program files (the user data
-/// in %AppData% stays as it is) and starts ThixTunnel again in the tray.
+/// The update is the new ThixTunnel.exe itself, started with "--update" (InstallService): it ends the running ThixTunnel,
+/// replaces the program file (the user data in %AppData% stays as it is) and starts ThixTunnel again in the tray.
 /// </summary>
 public static class UpdateService
 {
@@ -80,8 +80,8 @@ public static class UpdateService
         string.Equals(manifest.Channel, channel, StringComparison.OrdinalIgnoreCase) && manifest.BuildNumber > buildNumber;
 
     /// <summary>
-    /// Downloads the setup, checks its SHA-256 and starts it silently. The caller ends the application afterwards
-    /// (the setup would close it anyway).
+    /// Downloads the new version, checks its SHA-256 and starts it with "--update". The caller ends the application
+    /// afterwards (the update would end it anyway).
     /// </summary>
     public static async Task DownloadAndStartInstallerAsync(UpdateManifest manifest, IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
@@ -124,7 +124,7 @@ public static class UpdateService
         }
 
         Log.Info($"Starting update to {manifest.Version}");
-        Process.Start(new ProcessStartInfo(setupPath, "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /UPDATE")
+        Process.Start(new ProcessStartInfo(setupPath, InstallService.UpdateArgument)
         {
             UseShellExecute = false,
             WorkingDirectory = AppPaths.UpdateDirectory,

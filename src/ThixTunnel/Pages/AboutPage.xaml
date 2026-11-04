@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:ThixTunnel.Controls">
   <ScrollViewer VerticalScrollBarVisibility="Auto">
-    <StackPanel Margin="32,24,32,24">
+    <StackPanel Margin="20,16,20,20">
       <controls:PageHeader Title="Über ThixTunnel" />
 
       <Border Style="{StaticResource Tile}" Padding="28,24">

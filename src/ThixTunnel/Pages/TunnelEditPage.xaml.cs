@@ -8,23 +8,20 @@ using ThixTunnel.Dialogs;
 namespace ThixTunnel.Pages;
 
 /// <summary>Create or change a tunnel route: tabs for the hops, the port forwarding and the automation.</summary>
-public partial class TunnelEditPage : UserControl
+public partial class TunnelEditPage : UserControl, IDisposable
 {
-    private readonly MainWindow _window;
     private readonly TunnelRoute _route;
     private readonly bool _isNew;
-    private readonly IReadOnlyList<SshProfile> _profiles;
+    private IReadOnlyList<SshProfile> _profiles;
     private readonly List<Guid> _hops;
 
-    public TunnelEditPage(MainWindow window, Guid? routeId)
+    public TunnelEditPage(Guid? routeId)
     {
-        _window = window;
         InitializeComponent();
 
         var existing = routeId is null ? null : RouteService.Get(routeId.Value);
         _isNew = existing is null;
         _route = existing ?? new TunnelRoute();
-        Header.ParentClicked += (_, _) => _window.ShowTunnels(_isNew ? null : _route.Id);
         _profiles = ProfileService.List();
         _hops = [.. _route.HopProfileIds];
         if (_isNew && _profiles.Count > 0)
@@ -33,7 +30,6 @@ public partial class TunnelEditPage : UserControl
         }
 
         Header.Title = _isNew ? "Neue Tunnelroute" : "Tunnelroute bearbeiten";
-        Header.CurrentCrumb = _isNew ? "Neu" : _route.Name;
         NameBox.Text = _route.Name;
         LocalAddressBox.Text = _route.LocalAddress;
         LocalPortBox.Text = _route.LocalPort > 0 ? _route.LocalPort.ToString() : "";
@@ -58,7 +54,31 @@ public partial class TunnelEditPage : UserControl
         }
 
         RenderHops();
+        AppWindows.DataChanged += OnDataChanged;
         Loaded += (_, _) => NameBox.Focus();
+    }
+
+    public void Dispose() => AppWindows.DataChanged -= OnDataChanged;
+
+    private void Finish() => PageWindow.CloseHostOf(this);
+
+    /// <summary>A profile was created in its own window (e.g. through "Neues SSH-Profil …"): offer it in the hop lists.</summary>
+    private void OnDataChanged(object? sender, EventArgs e)
+    {
+        var hadNoProfiles = _profiles.Count == 0;
+        _profiles = ProfileService.List();
+        _hops.RemoveAll(id => _profiles.All(profile => profile.Id != id));
+        if (_hops.Count == 0 && _profiles.Count > 0)
+        {
+            _hops.Add(_profiles[0].Id);
+        }
+
+        if (hadNoProfiles && _profiles.Count > 0)
+        {
+            MessageBar.Clear();
+        }
+
+        RenderHops();
     }
 
     private void RenderHops()
@@ -90,7 +110,7 @@ public partial class TunnelEditPage : UserControl
         };
         number.SetResourceReference(Border.BackgroundProperty, "SelectionBrush");
 
-        var picker = new ComboBox { ItemsSource = _profiles, ItemTemplate = (DataTemplate)FindResource("ProfileItemTemplate"), SelectedItem = profile, MinWidth = 240 };
+        var picker = new ComboBox { ItemsSource = _profiles, ItemTemplate = (DataTemplate)FindResource("ProfileItemTemplate"), SelectedItem = profile, MinWidth = 140 };
         picker.SelectionChanged += (_, _) =>
         {
             if (picker.SelectedItem is SshProfile selected)
@@ -152,7 +172,7 @@ public partial class TunnelEditPage : UserControl
         RenderHops();
     }
 
-    private void OnNewProfileClick(object sender, RoutedEventArgs e) => _window.EditProfile(null);
+    private void OnNewProfileClick(object sender, RoutedEventArgs e) => AppWindows.ShowProfileEditor(null);
 
     private void OnLocalAddressChanged(object sender, TextChangedEventArgs e) =>
         LocalAddressField.Hint = AccessPolicy.IsLoopback(LocalAddressBox.Text.Trim()) || LocalAddressBox.Text.Trim().Length == 0
@@ -178,6 +198,7 @@ public partial class TunnelEditPage : UserControl
             return null;
         }
 
+        AppWindows.NotifyDataChanged();
         return saved;
     }
 
@@ -199,9 +220,9 @@ public partial class TunnelEditPage : UserControl
 
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
-        if (Save() is { } saved)
+        if (Save() is not null)
         {
-            _window.ShowTunnels(saved.Id);
+            Finish();
         }
     }
 
@@ -220,18 +241,19 @@ public partial class TunnelEditPage : UserControl
 
         if (PageActions.Run(() => TunnelManager.Connect(saved.Id), MessageBar))
         {
-            _window.ShowTunnels(saved.Id);
+            Finish();
         }
     }
 
-    private void OnBackClick(object sender, RoutedEventArgs e) => _window.ShowTunnels(_isNew ? null : _route.Id);
+    private void OnBackClick(object sender, RoutedEventArgs e) => PageWindow.CloseHostOf(this);
 
     private void OnDeleteClick(object sender, RoutedEventArgs e)
     {
-        if (ConfirmDialog.Ask(_window, "Tunnelroute löschen", $"„{_route.Name}“ wird getrennt und gelöscht. Die SSH-Profile bleiben erhalten.", "Löschen", isDestructive: true) &&
+        if (ConfirmDialog.Ask(Window.GetWindow(this), "Tunnelroute löschen", $"„{_route.Name}“ wird getrennt und gelöscht. Die SSH-Profile bleiben erhalten.", "Löschen", isDestructive: true) &&
             PageActions.Run(() => RouteService.Delete(_route.Id), MessageBar))
         {
-            _window.ShowTunnels();
+            AppWindows.NotifyDataChanged();
+            Finish();
         }
     }
 }

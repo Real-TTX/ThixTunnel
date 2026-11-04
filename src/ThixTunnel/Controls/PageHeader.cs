@@ -19,7 +19,7 @@ public sealed class PageHeader : StackPanel
     private readonly Button _parentLink = new() { Padding = new Thickness(0) };
     private readonly TextBlock _currentCrumb = new();
     private readonly TextBlock _title = new();
-    private readonly TextBlock _subtitle = new() { Margin = new Thickness(0, 4, 0, 0), FontSize = 15 };
+    private readonly TextBlock _subtitle = new() { Margin = new Thickness(0, 4, 0, 0), FontSize = 15, TextWrapping = TextWrapping.Wrap };
 
     public PageHeader()
     {

@@ -19,8 +19,13 @@ public partial class App : Application
 {
     public const string TrayArgument = "--tray";
 
-    private const string InstanceName = "ThixTunnel.SingleInstance";
-    private const string ShowWindowSignalName = "ThixTunnel.ShowWindow";
+    // One instance per data folder: a development run with its own THIXTUNNEL_DATA_DIR does not meet the installed one.
+    private static readonly string InstanceSuffix = Environment.GetEnvironmentVariable(AppPaths.DataDirectoryVariable) is { Length: > 0 }
+        ? "." + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(AppPaths.DataDirectory.ToUpperInvariant())))[..16]
+        : "";
+
+    private static readonly string InstanceName = "ThixTunnel.SingleInstance" + InstanceSuffix;
+    private static readonly string ShowWindowSignalName = "ThixTunnel.ShowWindow" + InstanceSuffix;
 
     private Mutex? _instanceMutex;
     private EventWaitHandle? _showWindowSignal;
@@ -39,6 +44,11 @@ public partial class App : Application
         {
             var exitCode = AskPassWindow.Run(routeName, string.Join(' ', e.Args));
             Shutdown(exitCode);
+            return;
+        }
+
+        if (RunSetupIfRequested(e.Args))
+        {
             return;
         }
 
@@ -117,6 +127,7 @@ public partial class App : Application
         Log.Info("ThixTunnel exiting");
         TunnelManager.DisconnectAll();
         _trayIcon?.Dispose();
+        AppWindows.CloseAll();
         if (_mainWindow is not null)
         {
             _mainWindow.IsExiting = true;
@@ -133,6 +144,91 @@ public partial class App : Application
         _showWindowSignal?.Dispose();
         _instanceMutex?.Dispose();
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// The published ThixTunnel.exe is its own setup (InstallService):
+    ///  - "--uninstall" (from "Installierte Apps"): the uninstall assistant, or silently with "--quiet".
+    ///  - "--update" (downloaded by the update check): installs itself silently and starts the installed ThixTunnel in the tray.
+    ///  - started anywhere else than the program folder (e.g. from Downloads): the setup assistant.
+    /// A development build (not single-file) always runs as the application.
+    /// </summary>
+    private bool RunSetupIfRequested(string[] args)
+    {
+        if (args.Contains(InstallService.UninstallArgument))
+        {
+            var removeFolder = args.Contains(InstallService.QuietArgument)
+                ? InstallService.Uninstall(deleteUserData: false, Log.Info)
+                : Setup.SetupWindow.Run(isUninstall: true).RemoveProgramFolderOnExit;
+            if (removeFolder)
+            {
+                InstallService.ScheduleProgramFolderRemoval();
+            }
+
+            Shutdown(0);
+            return true;
+        }
+
+        if (args.Contains(InstallService.UpdateArgument))
+        {
+            try
+            {
+                InstallService.Install(ExecutablePath, options: null, Log.Info);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException
+                                                  or System.Runtime.InteropServices.COMException)
+            {
+                Log.Error("Update failed", exception);
+            }
+
+            if (File.Exists(InstallService.InstalledExecutable))
+            {
+                InstallService.StartInstalled(TrayArgument);
+            }
+
+            Shutdown(0);
+            return true;
+        }
+
+#if SINGLE_FILE
+        const bool isPublishedBuild = true;
+#else
+        const bool isPublishedBuild = false;
+#endif
+        if (isPublishedBuild && !InstallService.IsInstalledExecutable(ExecutablePath))
+        {
+            Setup.SetupWindow.Run(isUninstall: false);
+            Shutdown(0);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The setup asks a running ThixTunnel to end (update, uninstall): remember the active tunnels and end cleanly.</summary>
+    private void ListenForExitSignal()
+    {
+        if (InstanceSuffix.Length > 0)
+        {
+            return; // a development run with its own data folder is none of the setup's business
+        }
+
+        var exitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, InstallService.ExitSignalName);
+        var listener = new Thread(() =>
+        {
+            exitSignal.WaitOne();
+            Dispatcher.BeginInvoke(() =>
+            {
+                Log.Info("Setup asked ThixTunnel to end");
+                SessionResume.RememberActiveRoutes();
+                ExitApplication();
+            });
+        })
+        {
+            IsBackground = true,
+            Name = "ThixTunnel exit signal listener",
+        };
+        listener.Start();
     }
 
     private bool TakeSingleInstance()
@@ -163,6 +259,7 @@ public partial class App : Application
             Name = "ThixTunnel second start listener",
         };
         listener.Start();
+        ListenForExitSignal();
         return true;
     }
 

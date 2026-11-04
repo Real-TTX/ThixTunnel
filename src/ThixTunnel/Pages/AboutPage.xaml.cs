@@ -8,11 +8,9 @@ namespace ThixTunnel.Pages;
 /// <summary>About ThixTunnel; opened through the version number at the bottom left of the side bar.</summary>
 public partial class AboutPage : UserControl
 {
-    private readonly MainWindow _window;
 
-    public AboutPage(MainWindow window)
+    public AboutPage()
     {
-        _window = window;
         InitializeComponent();
         VersionText.Text = AppInfo.Version;
         ChannelText.Text = AppInfo.Channel switch
@@ -29,7 +27,7 @@ public partial class AboutPage : UserControl
 
     private void OnProjectClick(object sender, RoutedEventArgs e) => SettingsPage.OpenUrl($"https://github.com/{AppInfo.Repository}");
 
-    private void OnUpdatesClick(object sender, RoutedEventArgs e) => _window.ShowSettings(1);
+    private void OnUpdatesClick(object sender, RoutedEventArgs e) => AppWindows.ShowSettings(SettingsPage.UpdatesTab);
 
-    private void OnBackClick(object sender, RoutedEventArgs e) => _window.ShowTunnels();
+    private void OnBackClick(object sender, RoutedEventArgs e) => PageWindow.CloseHostOf(this);
 }

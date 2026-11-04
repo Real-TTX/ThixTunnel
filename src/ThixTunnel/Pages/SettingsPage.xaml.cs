@@ -9,17 +9,27 @@ using ThixTunnel.Core.Models;
 
 namespace ThixTunnel.Pages;
 
-/// <summary>Global settings: start and behaviour, updates, advanced.</summary>
-public partial class SettingsPage : UserControl
+/// <summary>
+/// The settings window: start and behaviour, SSH profiles, import/export, updates, advanced.
+/// "Speichern" belongs to the settings tabs; the profile and import/export tabs act right away and hide it.
+/// </summary>
+public partial class SettingsPage : UserControl, IDisposable
 {
-    private readonly MainWindow _window;
+    public const int GeneralTab = 0;
+    public const int ProfilesTab = 1;
+    public const int TransferTab = 2;
+    public const int UpdatesTab = 3;
+    public const int AdvancedTab = 4;
+
+    private readonly ProfileListPage _profiles = new(null) { IsEmbedded = true };
     private UpdateManifest? _availableUpdate;
 
-    public SettingsPage(MainWindow window, int tabIndex)
+    public SettingsPage(int tabIndex)
     {
-        _window = window;
         InitializeComponent();
+        ProfilesHost.Content = _profiles;
         Tabs.SelectedIndex = tabIndex;
+        ImportButton.IsEnabled = !AccessPolicy.IsConfigurationLocked;
 
         var settings = SettingsService.Get();
         StartWithWindowsToggle.IsChecked = settings.StartWithWindows;
@@ -59,6 +69,74 @@ public partial class SettingsPage : UserControl
             MessageBar.Show("Die Einstellungen sind durch eine Richtlinie gesperrt.", InfoSeverity.Warning);
             SaveButton.IsEnabled = false;
         }
+    }
+
+    public void Dispose() => _profiles.Dispose();
+
+    public void SelectTab(int tabIndex) => Tabs.SelectedIndex = tabIndex;
+
+    private void OnTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.OriginalSource != Tabs)
+        {
+            return; // combo boxes and lists inside the tabs raise the same event
+        }
+
+        SaveButton.Visibility = Tabs.SelectedIndex is ProfilesTab or TransferTab ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnExportClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "SSH-Profile und Verbindungen exportieren",
+            Filter = TransferService.FileFilter,
+            FileName = TransferService.DefaultFileName,
+        };
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
+        {
+            return;
+        }
+
+        var exported = (Profiles: 0, Routes: 0);
+        if (PageActions.Run(() => exported = TransferService.Export(dialog.FileName), TransferResult))
+        {
+            TransferResult.Show($"{exported.Profiles} Profile und {exported.Routes} Verbindungen exportiert nach {dialog.FileName}.", InfoSeverity.Success);
+        }
+    }
+
+    private void OnImportClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "SSH-Profile und Verbindungen importieren", Filter = TransferService.FileFilter };
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
+        {
+            return;
+        }
+
+        TransferFile? file = null;
+        if (!PageActions.Run(() => file = TransferService.Read(dialog.FileName), TransferResult))
+        {
+            return;
+        }
+
+        var replace = ReplaceExistingToggle.IsChecked;
+        var question = $"Die Datei enthält {file!.Profiles.Count} Profile und {file.Routes.Count} Verbindungen " +
+                       $"(exportiert am {file.ExportedAt.LocalDateTime:dd.MM.yyyy HH:mm}). " +
+                       (replace ? "Vorhandene Einträge mit gleichem Namen werden ersetzt." : "Vorhandene Einträge mit gleichem Namen bleiben unverändert.");
+        if (!Dialogs.ConfirmDialog.Ask(Window.GetWindow(this), "Importieren", question, "Importieren"))
+        {
+            return;
+        }
+
+        ImportResult? result = null;
+        if (!PageActions.Run(() => result = TransferService.Import(dialog.FileName, replace), TransferResult))
+        {
+            return;
+        }
+
+        AppWindows.NotifyDataChanged();
+        var problems = result!.Problems.Count == 0 ? "" : "\n\n" + string.Join("\n", result.Problems.Select(problem => "• " + problem));
+        TransferResult.Show(result.Summary + problems, result.Problems.Count == 0 ? InfoSeverity.Success : InfoSeverity.Warning);
     }
 
     private static string YesNo(bool value) => value ? "ja" : "nein";
@@ -109,11 +187,11 @@ public partial class SettingsPage : UserControl
         }
         else if (SshPathField.Error.Length > 0)
         {
-            Tabs.SelectedIndex = 2;
+            Tabs.SelectedIndex = AdvancedTab;
         }
     }
 
-    private void OnBackClick(object sender, RoutedEventArgs e) => _window.ShowTunnels();
+    private void OnBackClick(object sender, RoutedEventArgs e) => PageWindow.CloseHostOf(this);
 
     private async void OnCheckClick(object sender, RoutedEventArgs e)
     {
@@ -160,7 +238,7 @@ public partial class SettingsPage : UserControl
     private void OnBrowseSshClick(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Title = "ssh.exe wählen", Filter = "ssh.exe|ssh.exe|Programme (*.exe)|*.exe" };
-        if (dialog.ShowDialog(_window) == true)
+        if (dialog.ShowDialog(Window.GetWindow(this)) == true)
         {
             SshPathBox.Text = dialog.FileName;
         }

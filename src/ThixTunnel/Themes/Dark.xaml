@@ -78,6 +78,8 @@
   <sys:String x:Key="IconDownload">&#xE896;</sys:String>
   <sys:String x:Key="IconKey">&#xE8D7;</sys:String>
   <sys:String x:Key="IconLock">&#xE72E;</sys:String>
+  <sys:String x:Key="IconExport">&#xE898;</sys:String>
+  <sys:String x:Key="IconImport">&#xE896;</sys:String>
 
   <!--
     ===== Base text =====
@@ -98,7 +100,7 @@
   <Style x:Key="PageTitle" TargetType="TextBlock">
     <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
     <Setter Property="FontFamily" Value="Segoe UI Variable Display, Segoe UI" />
-    <Setter Property="FontSize" Value="28" />
+    <Setter Property="FontSize" Value="24" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style x:Key="SectionTitle" TargetType="TextBlock">
@@ -230,6 +232,30 @@
         </DataTemplate>
       </Setter.Value>
     </Setter>
+  </Style>
+  <!-- Icon-only variants for narrow windows (the text goes into the tool tip). -->
+  <DataTemplate x:Key="IconGlyphTemplate">
+    <TextBlock Text="{Binding}" FontFamily="{StaticResource IconFont}" FontSize="14" />
+  </DataTemplate>
+  <Style x:Key="IconActionButton" TargetType="Button" BasedOn="{StaticResource ButtonBase}">
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="MinWidth" Value="38" />
+    <Setter Property="ContentTemplate" Value="{StaticResource IconGlyphTemplate}" />
+  </Style>
+  <Style x:Key="PrimaryIconButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="MinWidth" Value="38" />
+    <Setter Property="ContentTemplate" Value="{StaticResource IconGlyphTemplate}" />
+  </Style>
+  <Style x:Key="DangerIconButton" TargetType="Button" BasedOn="{StaticResource DangerButton}">
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="MinWidth" Value="38" />
+    <Setter Property="ContentTemplate" Value="{StaticResource IconGlyphTemplate}" />
+  </Style>
+  <!-- Borderless icon button (header and footer of the connection list, connect button in a row). -->
+  <Style x:Key="FlatIconButton" TargetType="Button" BasedOn="{StaticResource IconActionButton}">
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
   </Style>
 
   <!-- Navigation entries of the side bar -->
@@ -443,7 +469,8 @@
         <ControlTemplate TargetType="TabControl">
           <DockPanel>
             <Border DockPanel.Dock="Top" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
-              <TabPanel IsItemsHost="True" />
+              <!-- WrapPanel instead of TabPanel: in a narrow window the tabs wrap but keep their order -->
+              <WrapPanel IsItemsHost="True" />
             </Border>
             <ContentPresenter ContentSource="SelectedContent" Margin="{TemplateBinding Padding}" />
           </DockPanel>
@@ -493,6 +520,30 @@
       <Setter.Value>
         <ControlTemplate TargetType="ListBoxItem">
           <Border x:Name="Row" Background="Transparent" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,10">
+            <ContentPresenter />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Row" Property="Background" Value="{StaticResource TileHoverBrush}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Row" Property="Background" Value="{StaticResource SelectionBrush}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <!-- An entry of a contact-list style list (connection list, profiles): no grid lines, rounded highlight. -->
+  <Style x:Key="ContactRow" TargetType="ListBoxItem">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="Margin" Value="0,0,0,2" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBoxItem">
+          <Border x:Name="Row" Background="Transparent" CornerRadius="6" Padding="10,7,6,7">
             <ContentPresenter />
           </Border>
           <ControlTemplate.Triggers>

@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:ThixTunnel.Controls">
   <DockPanel>
-    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="32,14">
+    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="20,12">
       <controls:ActionBar>
         <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" Click="OnSaveClick">
           <controls:IconLabel Icon="{StaticResource IconSave}" Text="Speichern" />
@@ -15,11 +15,11 @@
     </Border>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-      <StackPanel x:Name="Form" Margin="32,24,32,24">
+      <StackPanel x:Name="Form" Margin="20,16,20,20">
         <controls:PageHeader Title="Einstellungen" />
         <controls:InfoBar x:Name="MessageBar" />
 
-        <TabControl x:Name="Tabs">
+        <TabControl x:Name="Tabs" SelectionChanged="OnTabChanged">
           <TabItem>
             <TabItem.Header>
               <controls:IconLabel Icon="{StaticResource IconSettings}" Text="Start und Verhalten" />
@@ -34,6 +34,50 @@
                 </StackPanel>
               </Border>
               <controls:InfoBar x:Name="AutoConnectInfo" />
+            </StackPanel>
+          </TabItem>
+
+          <!-- SSH profiles: managed here, not in the connection list -->
+          <TabItem>
+            <TabItem.Header>
+              <controls:IconLabel Icon="{StaticResource IconProfile}" Text="SSH-Profile" />
+            </TabItem.Header>
+            <ContentControl x:Name="ProfilesHost" Focusable="False" />
+          </TabItem>
+
+          <!-- Import / export of profiles and connections -->
+          <TabItem>
+            <TabItem.Header>
+              <controls:IconLabel Icon="{StaticResource IconExport}" Text="Import / Export" />
+            </TabItem.Header>
+            <StackPanel>
+              <controls:InfoBar x:Name="TransferResult" />
+              <Border Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="Exportieren" Style="{StaticResource SectionTitle}" />
+                  <TextBlock Style="{StaticResource MutedText}" Margin="0,-4,0,14"
+                             Text="Speichert alle SSH-Profile und Verbindungen in einer Datei – für den Umzug auf einen anderen PC, zum Teilen oder als Sicherung. Passwörter werden nie gespeichert, Schlüsseldateien nur als Pfad." />
+                  <controls:ActionBar>
+                    <Button x:Name="ExportButton" Style="{StaticResource PrimaryButton}" Click="OnExportClick">
+                      <controls:IconLabel Icon="{StaticResource IconExport}" Text="Exportieren …" />
+                    </Button>
+                  </controls:ActionBar>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="Importieren" Style="{StaticResource SectionTitle}" />
+                  <TextBlock Style="{StaticResource MutedText}" Margin="0,-4,0,6"
+                             Text="Übernimmt SSH-Profile und Verbindungen aus einer Exportdatei. Vorhandene Einträge (gleiche ID oder gleicher Name) bleiben unverändert – außer du wählst „Vorhandene ersetzen“." />
+                  <controls:SettingToggle x:Name="ReplaceExistingToggle" Title="Vorhandene ersetzen" BorderThickness="0" Margin="0,0,0,8"
+                                          Description="Gleichnamige Profile und Verbindungen mit den Angaben aus der Datei überschreiben" />
+                  <controls:ActionBar>
+                    <Button x:Name="ImportButton" Click="OnImportClick">
+                      <controls:IconLabel Icon="{StaticResource IconImport}" Text="Importieren …" />
+                    </Button>
+                  </controls:ActionBar>
+                </StackPanel>
+              </Border>
             </StackPanel>
           </TabItem>
 

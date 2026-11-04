@@ -60,26 +60,7 @@ public static class ProfileService
     {
         AccessPolicy.EnsureConfigurationEditable();
 
-        var profile = input.Clone();
-        profile.Name = InputRules.RequireText(profile.Name, nameof(SshProfile.Name), "Name");
-        profile.HostName = InputRules.RequireToken(profile.HostName, nameof(SshProfile.HostName), "Server");
-        profile.UserName = InputRules.RequireToken(profile.UserName, nameof(SshProfile.UserName), "Benutzer");
-        profile.Port = InputRules.RequirePort(profile.Port, nameof(SshProfile.Port), "SSH-Port");
-        profile.Description = (profile.Description ?? "").Trim();
-
-        if (profile.AuthenticationMethod == SshAuthenticationMethod.KeyFile)
-        {
-            profile.KeyFilePath = InputRules.RequireText(profile.KeyFilePath, nameof(SshProfile.KeyFilePath), "Schlüsseldatei", 400);
-            if (!File.Exists(profile.KeyFilePath))
-            {
-                throw new BusinessException("Die Schlüsseldatei wurde nicht gefunden.", nameof(SshProfile.KeyFilePath));
-            }
-        }
-        else
-        {
-            profile.KeyFilePath = "";
-        }
-
+        var profile = Normalize(input, requireKeyFile: true);
         DataStore.Update(data =>
         {
             if (data.Profiles.Any(other => other.Id != profile.Id && string.Equals(other.Name, profile.Name, StringComparison.CurrentCultureIgnoreCase)))
@@ -113,6 +94,31 @@ public static class ProfileService
         }
 
         DataStore.Update(data => data.Profiles.RemoveAll(profile => profile.Id == id));
+    }
+
+    /// <summary>Checks and cleans the fields of a profile (save and import). The import accepts a missing key file.</summary>
+    internal static SshProfile Normalize(SshProfile input, bool requireKeyFile)
+    {
+        var profile = input.Clone();
+        profile.Name = InputRules.RequireText(profile.Name, nameof(SshProfile.Name), "Name");
+        profile.HostName = InputRules.RequireToken(profile.HostName, nameof(SshProfile.HostName), "Server");
+        profile.UserName = InputRules.RequireToken(profile.UserName, nameof(SshProfile.UserName), "Benutzer");
+        profile.Port = InputRules.RequirePort(profile.Port, nameof(SshProfile.Port), "SSH-Port");
+        profile.Description = (profile.Description ?? "").Trim();
+
+        if (profile.AuthenticationMethod != SshAuthenticationMethod.KeyFile)
+        {
+            profile.KeyFilePath = "";
+            return profile;
+        }
+
+        profile.KeyFilePath = InputRules.RequireText(profile.KeyFilePath, nameof(SshProfile.KeyFilePath), "Schlüsseldatei", 400);
+        if (requireKeyFile && !File.Exists(profile.KeyFilePath))
+        {
+            throw new BusinessException("Die Schlüsseldatei wurde nicht gefunden.", nameof(SshProfile.KeyFilePath));
+        }
+
+        return profile;
     }
 
     private static Dictionary<Guid, int> CountUsage(AppData data) =>

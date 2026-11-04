@@ -64,24 +64,7 @@ public static class RouteService
     {
         AccessPolicy.EnsureConfigurationEditable();
 
-        var route = input.Clone();
-        route.Name = InputRules.RequireText(route.Name, nameof(TunnelRoute.Name), "Name");
-        route.LocalAddress = InputRules.RequireToken(route.LocalAddress, nameof(TunnelRoute.LocalAddress), "Lokale Adresse");
-        route.LocalPort = InputRules.RequirePort(route.LocalPort, nameof(TunnelRoute.LocalPort), "Lokaler Port");
-        route.TargetHost = InputRules.RequireToken(route.TargetHost, nameof(TunnelRoute.TargetHost), "Zielhost");
-        route.TargetPort = InputRules.RequirePort(route.TargetPort, nameof(TunnelRoute.TargetPort), "Zielport");
-        AccessPolicy.EnsureBindAddressAllowed(route.LocalAddress);
-
-        if (route.HopProfileIds.Count == 0)
-        {
-            throw new BusinessException("Mindestens ein SSH-Hop ist erforderlich.", nameof(TunnelRoute.HopProfileIds));
-        }
-
-        if (route.HopProfileIds.Count > 10)
-        {
-            throw new BusinessException("Höchstens 10 SSH-Hops sind möglich.", nameof(TunnelRoute.HopProfileIds));
-        }
-
+        var route = Normalize(input);
         DataStore.Update(data =>
         {
             var missing = route.HopProfileIds.Where(id => data.Profiles.All(profile => profile.Id != id)).ToList();
@@ -112,6 +95,30 @@ public static class RouteService
                 data.Routes.Add(route);
             }
         });
+
+        return route;
+    }
+
+    /// <summary>Checks and cleans the fields of a route (save and import).</summary>
+    internal static TunnelRoute Normalize(TunnelRoute input)
+    {
+        var route = input.Clone();
+        route.Name = InputRules.RequireText(route.Name, nameof(TunnelRoute.Name), "Name");
+        route.LocalAddress = InputRules.RequireToken(route.LocalAddress, nameof(TunnelRoute.LocalAddress), "Lokale Adresse");
+        route.LocalPort = InputRules.RequirePort(route.LocalPort, nameof(TunnelRoute.LocalPort), "Lokaler Port");
+        route.TargetHost = InputRules.RequireToken(route.TargetHost, nameof(TunnelRoute.TargetHost), "Zielhost");
+        route.TargetPort = InputRules.RequirePort(route.TargetPort, nameof(TunnelRoute.TargetPort), "Zielport");
+        AccessPolicy.EnsureBindAddressAllowed(route.LocalAddress);
+
+        if (route.HopProfileIds.Count == 0)
+        {
+            throw new BusinessException("Mindestens ein SSH-Hop ist erforderlich.", nameof(TunnelRoute.HopProfileIds));
+        }
+
+        if (route.HopProfileIds.Count > 10)
+        {
+            throw new BusinessException("Höchstens 10 SSH-Hops sind möglich.", nameof(TunnelRoute.HopProfileIds));
+        }
 
         return route;
     }

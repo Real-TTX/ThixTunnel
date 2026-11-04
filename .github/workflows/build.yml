@@ -73,9 +73,7 @@ jobs:
         run: |
           props="-p:Channel=${{ steps.ver.outputs.channel }} -p:BuildNumber=${{ steps.ver.outputs.build }} -p:BuildDate=${{ steps.ver.outputs.date }}"
           version=$(dotnet msbuild src/ThixTunnel/ThixTunnel.csproj -getProperty:InformationalVersion $props | tr -d '[:space:]')
-          numeric=$(dotnet msbuild src/ThixTunnel/ThixTunnel.csproj -getProperty:Version $props | tr -d '[:space:]')
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "numeric=$numeric" >> "$GITHUB_OUTPUT"
           printf '### ThixTunnel\n\n- version: `%s`\n- channel: `%s`\n' "$version" "${{ steps.ver.outputs.channel }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish (win-x64, self-contained)
@@ -85,24 +83,14 @@ jobs:
           -p:BuildNumber=${{ steps.ver.outputs.build }}
           -p:BuildDate=${{ steps.ver.outputs.date }}
 
-      - name: Install Inno Setup
+      # ThixTunnel.exe is its own setup (InstallService, like the Matgate agent): started from the download it installs
+      # itself per user, "--update" is the silent update, "--uninstall" the uninstaller. No installer tool needed.
+      - name: Package setup
         shell: pwsh
         run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
-          if (-not (Test-Path $iscc)) { throw "Inno Setup not found" }
-          "ISCC=$iscc" >> $env:GITHUB_ENV
-
-      - name: Build setup
-        shell: pwsh
-        run: |
-          & $env:ISCC /Qp `
-            "/DAppVersion=${{ steps.appver.outputs.version }}" `
-            "/DAppNumericVersion=${{ steps.appver.outputs.numeric }}" `
-            "/DSourceDir=$PWD\publish" `
-            "/DOutputDir=$PWD\artifacts" `
-            installer\ThixTunnel.iss
-          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Copy-Item publish\ThixTunnel.exe artifacts\ThixTunnelSetup.exe
+          Get-Item artifacts\ThixTunnelSetup.exe | Select-Object Name, Length
 
       # The manifest the installed application reads for its update check (UpdateService).
       - name: Write update manifest

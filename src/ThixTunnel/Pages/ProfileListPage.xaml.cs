@@ -8,7 +8,7 @@ using ThixTunnel.Dialogs;
 namespace ThixTunnel.Pages;
 
 /// <summary>List of the SSH profiles.</summary>
-public partial class ProfileListPage : UserControl
+public partial class ProfileListPage : UserControl, IDisposable
 {
     private static readonly ListOption[] Filters =
     [
@@ -26,16 +26,29 @@ public partial class ProfileListPage : UserControl
         new(ProfileService.SortByUsage, "Verwendung"),
     ];
 
-    private readonly MainWindow _window;
-
-    public ProfileListPage(MainWindow window, Guid? selectProfileId)
+    public ProfileListPage(Guid? selectProfileId)
     {
-        _window = window;
         InitializeComponent();
         Toolbar.Configure(Filters, SortFields);
         Toolbar.QueryChanged += (_, _) => Reload((ProfileList.SelectedItem as ProfileRow)?.Id);
+        AppWindows.DataChanged += OnDataChanged;
         Reload(selectProfileId);
     }
+
+    public void Dispose() => AppWindows.DataChanged -= OnDataChanged;
+
+    /// <summary>Inside a tab of the settings window: no own title, no own margin.</summary>
+    public bool IsEmbedded
+    {
+        get => Header.Visibility != Visibility.Visible;
+        set
+        {
+            Header.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
+            Root.Margin = value ? new Thickness(0) : new Thickness(20, 16, 20, 16);
+        }
+    }
+
+    private void OnDataChanged(object? sender, EventArgs e) => Reload((ProfileList.SelectedItem as ProfileRow)?.Id);
 
     public static string AuthenticationLabel(SshAuthenticationMethod method) => method switch
     {
@@ -68,27 +81,27 @@ public partial class ProfileListPage : UserControl
 
     private void OnRowDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => OnEditClick(sender, e);
 
-    private void OnNewClick(object sender, RoutedEventArgs e) => _window.EditProfile(null);
+    private void OnNewClick(object sender, RoutedEventArgs e) => AppWindows.ShowProfileEditor(null);
 
     private void OnEditClick(object sender, RoutedEventArgs e)
     {
         if (ProfileList.SelectedItem is ProfileRow row)
         {
-            _window.EditProfile(row.Id);
+            AppWindows.ShowProfileEditor(row.Id);
         }
     }
 
     private void OnDeleteClick(object sender, RoutedEventArgs e)
     {
         if (ProfileList.SelectedItem is not ProfileRow row ||
-            !ConfirmDialog.Ask(_window, "SSH-Profil löschen", $"„{row.Name}“ wird gelöscht.", "Löschen", isDestructive: true))
+            !ConfirmDialog.Ask(Window.GetWindow(this), "SSH-Profil löschen", $"„{row.Name}“ wird gelöscht.", "Löschen", isDestructive: true))
         {
             return;
         }
 
         if (PageActions.Run(() => ProfileService.Delete(row.Id), MessageBar))
         {
-            Reload(null);
+            AppWindows.NotifyDataChanged();
             MessageBar.Show($"„{row.Name}“ wurde gelöscht.", InfoSeverity.Success);
         }
     }
@@ -107,6 +120,12 @@ public partial class ProfileListPage : UserControl
         public string Server { get; } = profile.Port == 22 ? profile.HostName : $"{profile.HostName}:{profile.Port}";
 
         public string UserName { get; } = profile.UserName;
+
+        /// <summary>Second line of the entry: user@server[:port].</summary>
+        public string Login => $"{UserName}@{Server}";
+
+        public string Details =>
+            $"{Name}\n{Login}\nAnmeldung: {Authentication}\nVerwendet: {Usage}" + (Description.Length > 0 ? $"\n{Description}" : "");
 
         public string Authentication { get; } = AuthenticationLabel(profile.AuthenticationMethod);
 

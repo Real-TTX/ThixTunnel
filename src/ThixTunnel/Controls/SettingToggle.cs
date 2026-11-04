@@ -17,7 +17,7 @@ public sealed class SettingToggle : Border
         nameof(IsChecked), typeof(bool), typeof(SettingToggle),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, (sender, _) => ((SettingToggle)sender).Refresh()));
 
-    private readonly TextBlock _title = new() { FontSize = 15 };
+    private readonly TextBlock _title = new() { FontSize = 15, TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _description = new() { Margin = new Thickness(0, 3, 0, 0) };
     private readonly CheckBox _switch = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(24, 0, 0, 0) };
 
