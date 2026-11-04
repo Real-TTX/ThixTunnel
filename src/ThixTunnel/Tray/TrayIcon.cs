@@ -138,7 +138,6 @@ internal sealed class TrayIcon : IDisposable
             }
 
             item.DropDownItems.Add("In der Liste zeigen", null, (_, _) => _app.ShowMainWindow(window => window.SelectRoute(routeId)));
-            item.DropDownItems.Add("Bearbeiten …", null, (_, _) => AppWindows.ShowRouteEditor(routeId));
             item.DropDown.Renderer = _menu.Renderer;
             _menu.Items.Add(item);
         }

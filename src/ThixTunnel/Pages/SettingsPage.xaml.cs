@@ -10,23 +10,26 @@ using ThixTunnel.Core.Models;
 namespace ThixTunnel.Pages;
 
 /// <summary>
-/// The settings window: start and behaviour, SSH profiles, import/export, updates, advanced.
-/// "Speichern" belongs to the settings tabs; the profile and import/export tabs act right away and hide it.
+/// The settings window: start and behaviour, connections, SSH profiles, import/export, updates, advanced.
+/// "Speichern" belongs to the settings tabs; the connection, profile and import/export tabs act right away and hide it.
 /// </summary>
 public partial class SettingsPage : UserControl, IDisposable
 {
     public const int GeneralTab = 0;
-    public const int ProfilesTab = 1;
-    public const int TransferTab = 2;
-    public const int UpdatesTab = 3;
-    public const int AdvancedTab = 4;
+    public const int RoutesTab = 1;
+    public const int ProfilesTab = 2;
+    public const int TransferTab = 3;
+    public const int UpdatesTab = 4;
+    public const int AdvancedTab = 5;
 
+    private readonly RouteListPage _routes = new();
     private readonly ProfileListPage _profiles = new(null) { IsEmbedded = true };
     private UpdateManifest? _availableUpdate;
 
     public SettingsPage(int tabIndex)
     {
         InitializeComponent();
+        RoutesHost.Content = _routes;
         ProfilesHost.Content = _profiles;
         Tabs.SelectedIndex = tabIndex;
         ImportButton.IsEnabled = !AccessPolicy.IsConfigurationLocked;
@@ -41,7 +44,7 @@ public partial class SettingsPage : UserControl, IDisposable
         AutoInstallToggle.IsEnabled = settings.CheckForUpdates;
         SshPathBox.Text = settings.SshExecutablePath;
         SshPathField.Hint = "Leer = Windows OpenSSH (" + (SshExecutableHint() ?? "nicht gefunden – optionales Windows-Feature „OpenSSH-Client“ installieren") + ")";
-        AutoConnectInfo.Show("Automatisches Verbinden wird je Tunnelroute festgelegt (Tunnel › Bearbeiten › Automatisierung).", InfoSeverity.Info);
+        AutoConnectInfo.Show("Automatisches Verbinden wird je Tunnelroute festgelegt (Verbindungen › Bearbeiten › Automatisierung).", InfoSeverity.Info);
 
         VersionText.Text = AppInfo.Version;
         ChannelText.Text = AppInfo.Channel switch
@@ -71,7 +74,11 @@ public partial class SettingsPage : UserControl, IDisposable
         }
     }
 
-    public void Dispose() => _profiles.Dispose();
+    public void Dispose()
+    {
+        _routes.Dispose();
+        _profiles.Dispose();
+    }
 
     public void SelectTab(int tabIndex) => Tabs.SelectedIndex = tabIndex;
 
@@ -82,7 +89,7 @@ public partial class SettingsPage : UserControl, IDisposable
             return; // combo boxes and lists inside the tabs raise the same event
         }
 
-        SaveButton.Visibility = Tabs.SelectedIndex is ProfilesTab or TransferTab ? Visibility.Collapsed : Visibility.Visible;
+        SaveButton.Visibility = Tabs.SelectedIndex is RoutesTab or ProfilesTab or TransferTab ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void OnExportClick(object sender, RoutedEventArgs e)

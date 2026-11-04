@@ -24,7 +24,8 @@ verwaltet den Prozess im Hintergrund und zeigt den Zustand im Fenster und im Tra
 
 | Bereich | Verhalten |
 | --- | --- |
-| Hauptfenster | Schmal und hoch wie eine Kontaktliste: nur die Verbindungen mit Statuspunkt, darunter die Aktionen. Doppelklick oder Enter verbindet bzw. trennt. Alles andere öffnet sich in eigenen Fenstern; jedes Fenster passt auch auf kleine Bildschirme. |
+| Hauptfenster | Schmal und hoch wie eine Kontaktliste: nur die Verbindungen mit Statuspunkt und Knopf zum Verbinden/Trennen (auch Doppelklick oder Enter). Verwaltet wird nur in den Einstellungen; jedes Fenster passt auch auf kleine Bildschirme. |
+| Verbindungen | In den Einstellungen (Reiter „Verbindungen“): Suche, Filter, Sortierung, anlegen, bearbeiten (eigenes Fenster), ssh-Befehl kopieren, löschen. |
 | SSH-Profile | In den Einstellungen (Reiter „SSH-Profile“): Server, SSH-Port, Benutzer und Anmeldung (SSH-Agent, bestimmte Schlüsseldatei oder Passwort). Ein Profil kann in vielen Verbindungen stecken. |
 | Import / Export | In den Einstellungen: alle Profile und Verbindungen als Datei (`*.thixtunnel.json`) – für Umzug, Teilen oder Sicherung. Ohne Passwörter; vorhandene Einträge bleiben oder werden auf Wunsch ersetzt. Was nicht passt (z. B. belegter Port), wird benannt. |
 | Tunnelrouten | Beliebig viele Hops (bis 10) in fester Reihenfolge, je eine lokale TCP-Portweiterleitung. |
@@ -39,9 +40,9 @@ verwaltet den Prozess im Hintergrund und zeigt den Zustand im Fenster und im Tra
 | Updates (OTA) | Prüfung beim Start und alle 6 Stunden, Installation mit einem Klick. Optional **voll-automatisch**: installiert selbst, startet neu und verbindet vorher aktive Tunnel wieder. |
 | Richtlinien | Administratoren können unter `HKLM\SOFTWARE\Policies\ThixTunnel` (DWORD = 1) sperren: `LockConfiguration`, `DenyNetworkBinding` (nur Loopback), `DisableUpdates`. |
 
-| Verbindung bearbeiten (eigenes Fenster) | Einstellungen: Import / Export |
+| Verbindung bearbeiten (eigenes Fenster) | Einstellungen: Verbindungen verwalten |
 | --- | --- |
-| ![Fenster einer Verbindung mit zwei SSH-Hops](docs/screenshots/02-route-bearbeiten.png) | ![Einstellungen mit den Reitern SSH-Profile und Import / Export](docs/screenshots/03-einstellungen.png) |
+| ![Fenster einer Verbindung mit zwei SSH-Hops](docs/screenshots/02-route-bearbeiten.png) | ![Einstellungen mit den Reitern Verbindungen, SSH-Profile und Import / Export](docs/screenshots/03-einstellungen.png) |
 
 ## Installation und Updates
 

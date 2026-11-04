@@ -39,12 +39,14 @@ src/ThixTunnel.Core
 src/ThixTunnel
   App.xaml.cs        start-up: askpass mode, setup mode (--uninstall / --update / single-file exe outside the program folder),
                      single instance per data folder (mutex + events, exit signal for the setup), tray, network/power events
-  MainWindow         narrow connection list like a contact list (TunnelListPage, no search/filter toolbar by decision of the
+  MainWindow         narrow connection list like a contact list (TunnelListPage: connect/disconnect only, no toolbar, no
+                     add/edit/delete - managing happens only in the settings window, by decision of the
                      owner), status in the head, version (= about) bottom left, settings bottom right; X hides when "keep running" is on
   AppWindows/PageWindow  every other page opens in its own window (once per content), size clamped to the work area;
                      AppWindows.DataChanged refreshes open lists/editors after save, delete or import
-  Pages/             TunnelList / TunnelEdit (own window), ProfileList (tab in Settings) / ProfileEdit (own window),
-                     Settings (tabs: Start, SSH-Profile, Import / Export, Updates, Erweitert), About
+  Pages/             TunnelList (main window), RouteList (tab in Settings) / TunnelEdit (own window),
+                     ProfileList (tab in Settings) / ProfileEdit (own window),
+                     Settings (tabs: Start, Verbindungen, SSH-Profile, Import / Export, Updates, Erweitert), About
   Setup/             SetupWindow: install / update / uninstall assistant (after the Matgate agent and the MatMon setup)
   Controls/          ONE code base per control: ListToolbar (search/filter/sort, two rows when narrow), ActionBar (buttons, Separated gap before delete, wraps when narrow),
                      FormField (label/hint/error by Field name), StatusBadge, HopChain, SettingToggle, InfoBar, PageHeader, IconLabel

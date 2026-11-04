@@ -37,7 +37,7 @@ internal static class AppWindows
             page.SelectTab(tabIndex);
         }
 
-        Show("settings", "Einstellungen", 760, 680, () => new SettingsPage(tabIndex));
+        Show("settings", "Einstellungen", 860, 680, () => new SettingsPage(tabIndex));
     }
 
     public static void ShowAbout() => Show("about", "Über", 560, 540, () => new AboutPage());

@@ -37,6 +37,14 @@
             </StackPanel>
           </TabItem>
 
+          <!-- Connections: created, changed and deleted only here -->
+          <TabItem>
+            <TabItem.Header>
+              <controls:IconLabel Icon="{StaticResource IconTunnel}" Text="Verbindungen" />
+            </TabItem.Header>
+            <ContentControl x:Name="RoutesHost" Focusable="False" />
+          </TabItem>
+
           <!-- SSH profiles: managed here, not in the connection list -->
           <TabItem>
             <TabItem.Header>

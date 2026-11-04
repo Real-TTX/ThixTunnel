@@ -6,13 +6,12 @@ using System.Windows.Media;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Models;
-using ThixTunnel.Dialogs;
 
 namespace ThixTunnel.Pages;
 
 /// <summary>
-/// The connection list of the main window. Double-click (or Enter) connects or disconnects;
-/// editing opens the route in its own window.
+/// The connection list of the main window: only connect and disconnect (button, double-click or Enter).
+/// Creating, changing, deleting, import and export happen in the settings window.
 /// </summary>
 public partial class TunnelListPage : UserControl, IDisposable
 {
@@ -47,31 +46,14 @@ public partial class TunnelListPage : UserControl, IDisposable
         RouteList.ItemsSource = _rows;
         RouteList.SelectedItem = _rows.FirstOrDefault(row => row.Id == selectRouteId);
 
-        EmptyText.Text = ProfileService.List().Count == 0
-                ? "Noch keine Verbindung. Lege zuerst in den Einstellungen (Zahnrad unten rechts) unter „SSH-Profile“ deine Server an, dann mit + die erste Verbindung."
-                : "Noch keine Verbindung. Mit + legst du die erste an.";
+        EmptyText.Text = "Noch keine Verbindung. Verbindungen und SSH-Profile legst du in den Einstellungen an (Zahnrad unten rechts).";
         EmptyText.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        RefreshActions();
     }
 
     private void OnDataChanged(object? sender, EventArgs e) => Reload(SelectedRow?.Id);
 
-    private void OnStatusChanged(object? sender, TunnelStatus status) => Dispatcher.BeginInvoke(() =>
-    {
-        _rows.FirstOrDefault(candidate => candidate.Id == status.RouteId)?.Update(status);
-        RefreshActions();
-    });
-
-    private void RefreshActions()
-    {
-        var hasSelection = SelectedRow is not null;
-        EditButton.IsEnabled = hasSelection;
-        CopyButton.IsEnabled = hasSelection;
-        DeleteButton.IsEnabled = hasSelection && !AccessPolicy.IsConfigurationLocked;
-        DisconnectAllButton.IsEnabled = TunnelManager.GetStatuses().Any(status => status.IsActive);
-    }
-
-    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshActions();
+    private void OnStatusChanged(object? sender, TunnelStatus status) =>
+        Dispatcher.BeginInvoke(() => _rows.FirstOrDefault(candidate => candidate.Id == status.RouteId)?.Update(status));
 
     private void OnRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
@@ -92,11 +74,6 @@ public partial class TunnelListPage : UserControl, IDisposable
         if (e.Key == Key.Enter)
         {
             ToggleConnection(row.Id);
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Delete)
-        {
-            OnDeleteClick(sender, e);
             e.Handled = true;
         }
     }
@@ -121,44 +98,6 @@ public partial class TunnelListPage : UserControl, IDisposable
             TunnelManager.Connect(routeId);
         }
     }, MessageBar);
-
-    private void OnNewClick(object sender, RoutedEventArgs e) => AppWindows.ShowRouteEditor(null);
-
-    private void OnEditClick(object sender, RoutedEventArgs e)
-    {
-        if (SelectedRow is { } row)
-        {
-            AppWindows.ShowRouteEditor(row.Id);
-        }
-    }
-
-    private void OnDisconnectAllClick(object sender, RoutedEventArgs e) => TunnelManager.DisconnectAll();
-
-    private void OnDeleteClick(object sender, RoutedEventArgs e)
-    {
-        if (SelectedRow is not { } row || AccessPolicy.IsConfigurationLocked ||
-            !ConfirmDialog.Ask(Window.GetWindow(this), "Verbindung löschen", $"„{row.Name}“ wird getrennt und gelöscht. Die SSH-Profile bleiben erhalten.", "Löschen", isDestructive: true))
-        {
-            return;
-        }
-
-        if (PageActions.Run(() => RouteService.Delete(row.Id), MessageBar))
-        {
-            AppWindows.NotifyDataChanged();
-            MessageBar.Show($"„{row.Name}“ wurde gelöscht.", InfoSeverity.Success);
-        }
-    }
-
-    private void OnCopyCommandClick(object sender, RoutedEventArgs e)
-    {
-        if (SelectedRow is not { } row || RouteService.Get(row.Id) is not { } route)
-        {
-            return;
-        }
-
-        Clipboard.SetText(RouteService.DescribeCommand(route));
-        MessageBar.Show("ssh-Befehl in die Zwischenablage kopiert.", InfoSeverity.Success);
-    }
 
     /// <summary>One entry of the list; the status updates in place.</summary>
     public sealed class RouteRow : INotifyPropertyChanged
