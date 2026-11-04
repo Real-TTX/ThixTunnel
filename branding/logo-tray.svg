@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256">
+  <!--
+    ThixTunnel tray glyph (16 px): no tile, readable on dark and light task bars.
+    The app draws it at runtime (TrayIconRenderer) and adds a status dot bottom right:
+    green = connected, amber = connecting / waiting, red = error, none = idle.
+  -->
+  <path d="M44 224 V120 A84 84 0 0 1 212 120 V224" fill="none" stroke="#4DA3FF" stroke-width="44" stroke-linecap="round"/>
+  <circle cx="128" cy="164" r="34" fill="#E8EEF7"/>
+</svg>

@@ -1,0 +1,110 @@
+<UserControl x:Class="ThixTunnel.Pages.ProfileEditPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:ThixTunnel.Controls">
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="32,14">
+      <controls:ActionBar>
+        <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" Click="OnSaveClick" IsDefault="True">
+          <controls:IconLabel Icon="{StaticResource IconSave}" Text="Speichern" />
+        </Button>
+        <Button Click="OnBackClick" IsCancel="True">
+          <controls:IconLabel Icon="{StaticResource IconBack}" Text="Zurück" />
+        </Button>
+        <Button x:Name="DeleteButton" Style="{StaticResource DangerButton}" controls:ActionBar.Separated="True" Click="OnDeleteClick">
+          <controls:IconLabel Icon="{StaticResource IconDelete}" Text="Löschen" />
+        </Button>
+      </controls:ActionBar>
+    </Border>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel x:Name="Form" Margin="32,24,32,24">
+        <controls:PageHeader x:Name="Header" ParentTitle="SSH-Profile" Title="SSH-Profil bearbeiten" />
+        <controls:InfoBar x:Name="MessageBar" />
+
+        <TabControl x:Name="Tabs">
+          <TabItem>
+            <TabItem.Header>
+              <controls:IconLabel Icon="{StaticResource IconProfile}" Text="Allgemein" />
+            </TabItem.Header>
+            <Border Style="{StaticResource Tile}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="3*" />
+                  <ColumnDefinition Width="20" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <controls:FormField Grid.ColumnSpan="3" Header="Name" Field="Name" Hint="So erscheint das Profil in Routen, z. B. „Gateway“ oder „Datenbankserver“.">
+                  <TextBox x:Name="NameBox" />
+                </controls:FormField>
+                <controls:FormField Grid.Row="1" Header="Server (Hostname oder IP-Adresse)" Field="HostName">
+                  <TextBox x:Name="HostBox" />
+                </controls:FormField>
+                <controls:FormField Grid.Row="1" Grid.Column="2" Header="SSH-Port" Field="Port">
+                  <TextBox x:Name="PortBox" />
+                </controls:FormField>
+                <controls:FormField Grid.Row="2" Header="Benutzer" Field="UserName">
+                  <TextBox x:Name="UserBox" />
+                </controls:FormField>
+                <controls:FormField Grid.Row="3" Grid.ColumnSpan="3" Header="Beschreibung (optional)" Field="Description">
+                  <TextBox x:Name="DescriptionBox" />
+                </controls:FormField>
+              </Grid>
+            </Border>
+          </TabItem>
+
+          <TabItem>
+            <TabItem.Header>
+              <controls:IconLabel Icon="{StaticResource IconKey}" Text="Authentifizierung" />
+            </TabItem.Header>
+            <StackPanel>
+              <Border Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="Anmeldeverfahren" Style="{StaticResource SectionTitle}" />
+                  <RadioButton x:Name="AgentOption" Style="{StaticResource OptionRadio}" GroupName="Auth" Checked="OnAuthenticationChanged">
+                    <StackPanel>
+                      <TextBlock Text="SSH-Agent / Standardschlüssel" />
+                      <TextBlock Style="{StaticResource MutedText}" Text="Schlüssel aus dem Windows-OpenSSH-Agenten oder aus %USERPROFILE%\.ssh. Empfohlen – auch für automatische Verbindungen." />
+                    </StackPanel>
+                  </RadioButton>
+                  <RadioButton x:Name="KeyFileOption" Style="{StaticResource OptionRadio}" GroupName="Auth" Checked="OnAuthenticationChanged">
+                    <StackPanel>
+                      <TextBlock Text="Bestimmte Schlüsseldatei" />
+                      <TextBlock Style="{StaticResource MutedText}" Text="Nur dieser private Schlüssel wird verwendet. Eine Passphrase wird beim manuellen Verbinden abgefragt." />
+                    </StackPanel>
+                  </RadioButton>
+                  <RadioButton x:Name="PasswordOption" Style="{StaticResource OptionRadio}" GroupName="Auth" Checked="OnAuthenticationChanged">
+                    <StackPanel>
+                      <TextBlock Text="Passwort" />
+                      <TextBlock Style="{StaticResource MutedText}" Text="Wird bei jedem manuellen Verbinden abgefragt und nicht gespeichert. Nicht für automatische Verbindungen geeignet." />
+                    </StackPanel>
+                  </RadioButton>
+                </StackPanel>
+              </Border>
+
+              <!-- Only for the key file method -->
+              <Border x:Name="KeyFileTile" Style="{StaticResource Tile}">
+                <controls:FormField Header="Private Schlüsseldatei" Field="KeyFilePath" Margin="0">
+                  <DockPanel>
+                    <Button DockPanel.Dock="Right" Margin="8,0,0,0" Click="OnBrowseKeyClick">
+                      <controls:IconLabel Icon="{StaticResource IconFolder}" Text="Durchsuchen …" />
+                    </Button>
+                    <TextBox x:Name="KeyFileBox" />
+                  </DockPanel>
+                </controls:FormField>
+              </Border>
+            </StackPanel>
+          </TabItem>
+        </TabControl>
+
+        <TextBlock x:Name="UsageText" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

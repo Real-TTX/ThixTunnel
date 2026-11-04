@@ -1,0 +1,113 @@
+<UserControl x:Class="ThixTunnel.Pages.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:ThixTunnel.Controls">
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="32,14">
+      <controls:ActionBar>
+        <Button x:Name="SaveButton" Style="{StaticResource PrimaryButton}" Click="OnSaveClick">
+          <controls:IconLabel Icon="{StaticResource IconSave}" Text="Speichern" />
+        </Button>
+        <Button Click="OnBackClick">
+          <controls:IconLabel Icon="{StaticResource IconBack}" Text="Zurück" />
+        </Button>
+      </controls:ActionBar>
+    </Border>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel x:Name="Form" Margin="32,24,32,24">
+        <controls:PageHeader Title="Einstellungen" />
+        <controls:InfoBar x:Name="MessageBar" />
+
+        <TabControl x:Name="Tabs">
+          <TabItem>
+            <TabItem.Header>
+              <controls:IconLabel Icon="{StaticResource IconSettings}" Text="Start und Verhalten" />
+            </TabItem.Header>
+            <StackPanel>
+              <Border Style="{StaticResource Tile}" Padding="20,4">
+                <StackPanel>
+                  <controls:SettingToggle x:Name="StartWithWindowsToggle" Title="Bei Windows-Anmeldung starten" Description="Für dein Benutzerkonto" />
+                  <controls:SettingToggle x:Name="StartInTrayToggle" Title="Im Tray starten" Description="Hauptfenster beim automatischen Start ausblenden" />
+                  <controls:SettingToggle x:Name="KeepRunningToggle" Title="Beim Schließen im Tray weiterlaufen" Description="Tunnel bleiben aktiv; „Beenden“ im Tray-Menü trennt alle Tunnel" />
+                  <controls:SettingToggle x:Name="NotifyToggle" Title="Bei Verbindungsfehlern benachrichtigen" Description="Hinweis im Infobereich der Taskleiste" BorderThickness="0" />
+                </StackPanel>
+              </Border>
+              <controls:InfoBar x:Name="AutoConnectInfo" />
+            </StackPanel>
+          </TabItem>
+
+          <TabItem>
+            <TabItem.Header>
+              <controls:IconLabel Icon="{StaticResource IconDownload}" Text="Updates" />
+            </TabItem.Header>
+            <StackPanel>
+              <Border Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="Installierte Version" Style="{StaticResource SectionTitle}" />
+                  <TextBlock x:Name="VersionText" FontSize="15" />
+                  <TextBlock x:Name="ChannelText" Style="{StaticResource MutedText}" Margin="0,4,0,14" />
+                  <controls:InfoBar x:Name="UpdateStatus" Margin="0,0,0,12" />
+                  <ProgressBar x:Name="DownloadProgress" Height="4" Minimum="0" Maximum="1" Margin="0,0,0,12" Visibility="Collapsed"
+                               Foreground="{StaticResource AccentBrush}" Background="{StaticResource InputBrush}" BorderThickness="0" />
+                  <controls:ActionBar>
+                    <Button x:Name="CheckButton" Click="OnCheckClick">
+                      <controls:IconLabel Icon="{StaticResource IconRefresh}" Text="Jetzt prüfen" />
+                    </Button>
+                    <Button x:Name="InstallButton" Style="{StaticResource PrimaryButton}" Click="OnInstallClick" Visibility="Collapsed">
+                      <controls:IconLabel Icon="{StaticResource IconDownload}" Text="Update installieren" />
+                    </Button>
+                    <Button x:Name="ReleasePageButton" Style="{StaticResource LinkButton}" Click="OnReleasePageClick" Padding="8,0">
+                      <TextBlock Text="Versionshinweise auf GitHub" Foreground="{StaticResource AccentHoverBrush}" VerticalAlignment="Center" />
+                    </Button>
+                  </controls:ActionBar>
+                </StackPanel>
+              </Border>
+              <Border x:Name="UpdateOptionsTile" Style="{StaticResource Tile}" Padding="20,4">
+                <StackPanel>
+                  <controls:SettingToggle x:Name="CheckUpdatesToggle" Title="Automatisch nach Updates suchen" Description="Beim Start und alle 6 Stunden" Changed="OnCheckUpdatesChanged" />
+                  <controls:SettingToggle x:Name="AutoInstallToggle" Title="Updates automatisch installieren" BorderThickness="0"
+                                          Description="Voll-automatisches Update: ThixTunnel installiert neue Versionen selbst und startet neu. Aktive Tunnel werden danach wieder verbunden." />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </TabItem>
+
+          <TabItem>
+            <TabItem.Header>
+              <controls:IconLabel Icon="{StaticResource IconKey}" Text="Erweitert" />
+            </TabItem.Header>
+            <StackPanel>
+              <Border Style="{StaticResource Tile}">
+                <StackPanel>
+                  <controls:FormField x:Name="SshPathField" Header="ssh.exe (optional)" Field="SshExecutablePath">
+                    <DockPanel>
+                      <Button DockPanel.Dock="Right" Margin="8,0,0,0" Click="OnBrowseSshClick">
+                        <controls:IconLabel Icon="{StaticResource IconFolder}" Text="Durchsuchen …" />
+                      </Button>
+                      <TextBox x:Name="SshPathBox" />
+                    </DockPanel>
+                  </controls:FormField>
+                  <controls:ActionBar>
+                    <Button Click="OnOpenDataFolderClick">
+                      <controls:IconLabel Icon="{StaticResource IconFolder}" Text="Datenordner öffnen" />
+                    </Button>
+                    <Button Click="OnOpenLogFolderClick">
+                      <controls:IconLabel Icon="{StaticResource IconFolder}" Text="Protokolle öffnen" />
+                    </Button>
+                  </controls:ActionBar>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="Richtlinien" Style="{StaticResource SectionTitle}" />
+                  <TextBlock x:Name="PolicyText" Style="{StaticResource MutedText}" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </TabItem>
+        </TabControl>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

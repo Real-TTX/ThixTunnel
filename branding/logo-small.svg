@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 256 256">
+  <!-- ThixTunnel favicon / small icon (16-32 px): fewer, thicker shapes; the three hops become one node. -->
+  <rect x="0" y="0" width="256" height="256" rx="60" fill="#16294A"/>
+  <path d="M52 216 V124 A76 76 0 0 1 204 124 V216" fill="none" stroke="#4DA3FF" stroke-width="40" stroke-linecap="round"/>
+  <circle cx="128" cy="160" r="30" fill="#FFFFFF"/>
+</svg>

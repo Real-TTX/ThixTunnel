@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Models, business layer (static classes) and infrastructure. No UI. -->
+  <PropertyGroup>
+    <RootNamespace>ThixTunnel.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ThixTunnel.Tests" />
+  </ItemGroup>
+
+</Project>

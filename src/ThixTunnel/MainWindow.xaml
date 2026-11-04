@@ -1,0 +1,65 @@
+<Window x:Class="ThixTunnel.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ThixTunnel" Width="1120" Height="780" MinWidth="900" MinHeight="620"
+        Icon="Assets/thixtunnel.ico"
+        WindowStartupLocation="CenterScreen">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="248" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <!-- Side bar: brand, navigation, status, version (the version opens the about page) -->
+    <Border Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+      <DockPanel Margin="16,18,16,14">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,0,26">
+          <Image Source="Assets/logo-256.png" Width="30" Height="30" RenderOptions.BitmapScalingMode="HighQuality" />
+          <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="19" FontWeight="SemiBold">
+            <Run Text="Thix" /><Run Text="Tunnel" Foreground="{StaticResource AccentHoverBrush}" />
+          </TextBlock>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom">
+          <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,10" />
+          <StackPanel Orientation="Horizontal" Margin="8,4,0,8">
+            <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+            <TextBlock x:Name="StatusText" Margin="10,0,0,0" Text="Kein Tunnel aktiv" VerticalAlignment="Center" />
+          </StackPanel>
+          <Button x:Name="UpdateHint" Style="{StaticResource LinkButton}" Margin="8,0,0,4" Visibility="Collapsed" Click="OnUpdateHintClick">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="{StaticResource IconDownload}" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource WarningBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+              <TextBlock Text="Update verfügbar" Foreground="{StaticResource WarningBrush}" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="VersionLink" Style="{StaticResource LinkButton}" Margin="8,0,0,0" Click="OnVersionClick" ToolTip="Über ThixTunnel">
+            <TextBlock x:Name="VersionText" Foreground="{StaticResource TextMutedBrush}" FontSize="12" />
+          </Button>
+        </StackPanel>
+
+        <StackPanel>
+          <RadioButton x:Name="NavTunnels" Style="{StaticResource NavButton}" GroupName="Nav" Checked="OnNavChecked" Click="OnNavClick">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="{StaticResource IconTunnel}" Style="{StaticResource IconText}" FontSize="18" Margin="0,0,14,0" />
+              <TextBlock Text="Tunnel" />
+            </StackPanel>
+          </RadioButton>
+          <RadioButton x:Name="NavProfiles" Style="{StaticResource NavButton}" GroupName="Nav" Checked="OnNavChecked" Click="OnNavClick">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="{StaticResource IconProfile}" Style="{StaticResource IconText}" FontSize="18" Margin="0,0,14,0" />
+              <TextBlock Text="SSH-Profile" />
+            </StackPanel>
+          </RadioButton>
+          <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" GroupName="Nav" Checked="OnNavChecked" Click="OnNavClick">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="{StaticResource IconSettings}" Style="{StaticResource IconText}" FontSize="18" Margin="0,0,14,0" />
+              <TextBlock Text="Einstellungen" />
+            </StackPanel>
+          </RadioButton>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <ContentControl x:Name="PageHost" Grid.Column="1" Focusable="False" />
+  </Grid>
+</Window>

@@ -1,62 +1,81 @@
-# ThixTunnel
+<p align="center">
+  <img src="branding/logo-full.svg" alt="ThixTunnel" width="440">
+</p>
 
 **SSH-Profile, mehrere Hops und lokale Portweiterleitungen als Windows-Tray-App.**
 
-ThixTunnel soll wiederkehrende SSH-Verbindungen in einer übersichtlichen Windows-Anwendung bündeln. Nutzer speichern ihre SSH-Profile, stellen daraus Tunnelrouten zusammen und erreichen entfernte Dienste über einen lokalen Port. Ein Tray-Icon, ein Windows-Installer und ein einstellbarer Start bei der Windows-Anmeldung gehören zum geplanten Umfang.
+ThixTunnel bündelt wiederkehrende SSH-Verbindungen in einer übersichtlichen Windows-Anwendung. SSH-Profile beschreiben die Anmeldung an je einem Server; Tunnelrouten verbinden Profile in fester Reihenfolge und machen einen entfernten Dienst über einen lokalen Port erreichbar. Unter der Haube arbeitet der Windows-OpenSSH-Client – im Kern `ssh -N -J … -L …`.
 
-**Projektstatus: Konzeptphase.** Dieses Repository dokumentiert die Anwendungsidee und die ersten UI-Mockups als Grundlage für die Umsetzung.
+**Projektstatus: Version 0.1 – erste Umsetzung.** Profile, Multi-Hop-Routen, Verbinden/Trennen mit Status, Tray, Autostart, Auto-Verbindung, Wiederverbindung, Installer und Updates sind implementiert. Grundlage sind das [Anwendungskonzept](docs/konzept.md) und die [Mockups](docs/mockups/README.md).
 
-- [Anwendungskonzept und Anforderungen](docs/konzept.md)
-- [Alle vier Mockups ansehen](docs/mockups/README.md)
-- [Matmon als Referenz für Windows-Setup und Tray](https://github.com/Real-TTX/Matmon)
+![Tunnelübersicht mit gespeicherten Routen, Status und Details der ausgewählten Route](docs/screenshots/01-tunnel.png)
 
 ## Die Idee
 
-Eine gespeicherte Route kann beispielsweise so aussehen:
+**Lokaler Port 4455 → Profil 1 → Profil 2 → Ziel 127.0.0.1:4453.** Profil 1 ist der Sprungserver, Profil 2 der letzte SSH-Server; das Ziel wird aus dessen Sicht angesprochen. ThixTunnel startet dafür
 
-**Lokaler Port 4455 → Profil 1 → Profil 2 → Ziel 127.0.0.1:4453.**
+```powershell
+ssh -N -J profil1 -L 127.0.0.1:4455:127.0.0.1:4453 profil2
+```
 
-Profil 1 ist der Sprungserver; Profil 2 ist der letzte SSH-Server. Die Zieladresse wird aus Sicht dieses letzten Servers angesprochen. Die Anwendung verwaltet die SSH-Verbindungen im Hintergrund und macht ihren Zustand im Hauptfenster und im Tray sichtbar.
+verwaltet den Prozess im Hintergrund und zeigt den Zustand im Fenster und im Tray.
 
-## Geplanter Funktionsumfang
+## Funktionen
 
-| Bereich | Geplantes Verhalten |
+| Bereich | Verhalten |
 | --- | --- |
-| SSH-Profile | Serveradresse, SSH-Port, Benutzer und Authentifizierung speichern. |
-| Tunnelrouten | Profile in einer festen Reihenfolge verbinden und mehrere SSH-Hops unterstützen. |
-| Portweiterleitung | Lokale Adresse und lokalen Port sowie Zielhost und Zielport einstellen. |
-| Verbindungssteuerung | Einzelne Routen verbinden, trennen und ihren Status anzeigen. |
-| Tray | Status, Schnellzugriff auf Tunnel, Einstellungen und vollständiges Beenden. |
-| Autostart | Die Anwendung optional bei der Windows-Anmeldung starten und im Tray öffnen. |
-| Auto-Verbindung | Für jede Tunnelroute einzeln festlegen, ob sie beim App-Start verbunden wird. |
-| Wiederverbindung | Nach einem unbeabsichtigten Abbruch optional erneut verbinden; manuelles Trennen respektieren. |
-| Windows-Installer | Installation, Verknüpfungen, Autostart-Auswahl und Deinstallation anbieten. |
-| Updates | Vorhandene Profile, Routen und Einstellungen erhalten. |
+| SSH-Profile | Server, SSH-Port, Benutzer und Anmeldung (SSH-Agent, bestimmte Schlüsseldatei oder Passwort). Ein Profil kann in vielen Routen stecken. |
+| Tunnelrouten | Beliebig viele Hops (bis 10) in fester Reihenfolge, je eine lokale TCP-Portweiterleitung. |
+| Verbinden | Status je Route (Verbunden, Verbindet, Wartet, Fehler) mit verständlicher Fehlermeldung und dem entsprechenden ssh-Befehl. |
+| Anmeldung | Passwörter, Passphrasen und unbekannte Hostschlüssel werden beim **manuellen** Verbinden per Dialog abgefragt (SSH_ASKPASS) und nie gespeichert. Geänderte Hostschlüssel werden immer abgelehnt. |
+| Automatik | Pro Route: beim App-Start verbinden und nach Abbruch erneut verbinden (wachsende Pausen, sofortiger Versuch bei Netzwerkwechsel und nach Standby). Automatische Versuche fragen nie nach. |
+| Tray | Statuspunkt im Symbol, Tooltip, Menü mit allen Tunneln, „Automatik pausieren“, Einstellungen, Beenden. |
+| Fenster | Fenster-X lässt die Tunnel im Tray weiterlaufen (einstellbar); „Beenden“ trennt alle Tunnel. Ein zweiter Programmstart öffnet das vorhandene Fenster. |
+| Aufräumen | Alle ssh-Prozesse hängen an einem Windows-Job-Objekt – auch nach einem Absturz bleibt kein Tunnel zurück. |
+| Autostart | „Bei Windows-Anmeldung starten“ (HKCU\…\Run) und „Im Tray starten“ – unabhängig von der Auto-Verbindung je Route. |
+| Installer | Setup für das eigene Benutzerkonto ohne Adminrechte; Startmenü, optionale Desktop-Verknüpfung, optionaler Autostart, Deinstallation mit Rückfrage zu den Benutzerdaten. |
+| Updates (OTA) | Prüfung beim Start und alle 6 Stunden, Installation mit einem Klick. Optional **voll-automatisch**: installiert selbst, startet neu und verbindet vorher aktive Tunnel wieder. |
+| Richtlinien | Administratoren können unter `HKLM\SOFTWARE\Policies\ThixTunnel` (DWORD = 1) sperren: `LockConfiguration`, `DenyNetworkBinding` (nur Loopback), `DisableUpdates`. |
 
-**Autostart und Auto-Verbindung sind getrennte Einstellungen:** Der Autostart betrifft die Anwendung, die Auto-Verbindung jeweils eine vollständige Tunnelroute.
-
-## UI-Mockups
-
-Die Bilder stammen aus der ersten Entwurfsrunde und tragen noch den damaligen Arbeitstitel **ThixHop**. Der Projektname lautet **ThixTunnel**. Die Bilder sind visuelle Entwürfe mit Beispieldaten; sie dokumentieren die geplante Bedienung.
-
-### Tunnelübersicht
-
-![Tunnelübersicht mit gespeicherten Routen, Verbindungsstatus und den Details der ausgewählten Portweiterleitung](docs/mockups/01-tunneluebersicht.png)
-
-### Weitere Ansichten
-
-| Ansicht | Inhalt |
+| Route bearbeiten | Einstellungen |
 | --- | --- |
-| [Tunnelroute bearbeiten](docs/mockups/02-tunnelroute-bearbeiten.png) | Reihenfolge der SSH-Hops, Portweiterleitung und Automatisierung je Route. |
-| [Einstellungen und Tray-Menü](docs/mockups/03-einstellungen-und-tray.png) | Windows-Autostart, Hintergrundbetrieb und Schnellzugriff im Tray. |
-| [Windows-Installer](docs/mockups/04-windows-installer.png) | Benutzerinstallation, Verknüpfungen und optionale Autostart-Auswahl. |
+| ![Routen-Editor mit zwei SSH-Hops](docs/screenshots/02-route-bearbeiten.png) | ![Einstellungen für Start und Tray-Verhalten](docs/screenshots/03-einstellungen.png) |
 
-**[Die vollständige Galerie zeigt alle vier Bilder direkt untereinander.](docs/mockups/README.md)**
+## Installation und Updates
+
+Jeder Build wird in GitHub Actions gebaut und als Setup veröffentlicht:
+
+| Kanal | Branch | Version | Download |
+| --- | --- | --- | --- |
+| Release | `main` | `<major>.<minor>.<build>-<datum>`, z. B. `0.1.42-20261104` | [release-channel](https://github.com/Real-TTX/ThixTunnel/releases/tag/release-channel) und je Version `v<version>` |
+| Nightly | `dev` | `nightly-<build>-<datum>`, z. B. `nightly-43-20261104` | [nightly-channel](https://github.com/Real-TTX/ThixTunnel/releases/tag/nightly-channel) (Vorabversion) |
+| Lokal | jeder andere Build | `local-<datum>` | – (Workflow-Artefakt bei Pull Requests) |
+
+`ThixTunnelSetup.exe` installiert nach `%LocalAppData%\Programs\ThixTunnel`. Eine installierte Version prüft nur ihren eigenen Kanal (`thixtunnel-update.json` im Kanal-Release, mit SHA-256 des Setups). Benutzerdaten liegen getrennt unter `%AppData%\ThixTunnel` und bleiben bei Updates erhalten.
+
+Voraussetzung ist der **Windows-OpenSSH-Client** (`C:\Windows\System32\OpenSSH\ssh.exe`, optionales Windows-Feature).
+
+## Entwicklung
+
+```powershell
+dotnet build ThixTunnel.slnx                         # 0 Warnungen, 0 Fehler
+dotnet test ThixTunnel.slnx                          # Unit- und Business-Layer-Tests
+powershell -File scripts\e2e-docker.ps1              # echter 2-Hop-Tunnel gegen Docker-SSH-Server
+powershell -File scripts\build-icons.ps1             # Icon (.ico) und PNGs aus der Logo-Geometrie
+$env:THIXTUNNEL_DATA_DIR = "C:\temp\thixtunnel-demo" # App mit separatem Datenordner starten
+```
+
+| Pfad | Inhalt |
+| --- | --- |
+| `src/ThixTunnel.Core` | Modelle, Business-Layer (statische Klassen, Berechtigungsprüfung in jeder Änderung), Infrastruktur (JSON-Speicher, ssh-Konfiguration, Prozesse, Job-Objekt) |
+| `src/ThixTunnel` | WPF-Oberfläche, Tray, SSH_ASKPASS-Dialog, Update-Steuerung, wiederverwendbare Controls |
+| `tests/ThixTunnel.Tests` | xUnit-Tests; `EndToEndTests` laufen nur über `scripts/e2e-docker.ps1` |
+| `installer/ThixTunnel.iss` | Inno-Setup-Skript (Installation, Update, Deinstallation) |
+| `branding/` | Logo in drei Detailstufen: voll (`logo-full.svg`), App-Icon (`logo-icon.svg`), klein/Favicon (`logo-small.svg`), Tray-Glyph (`logo-tray.svg`) |
+| `.github/workflows/build.yml` | Build, Test, Setup, Update-Manifest und Veröffentlichung je Kanal |
+
+Branches: `main` (Release) und `dev` (Nightly). Entwicklungsregeln stehen in [CLAUDE.md](CLAUDE.md).
 
 ## Orientierung an Matmon
 
-[Matmon](https://github.com/Real-TTX/Matmon) ist die Referenz für den Windows-Installationsassistenten und die Bedienung über ein Tray-Icon. Matmon verwendet ein eigenes .NET-/WinForms-Setup und `NotifyIcon`. Die konkreten Quellen und die für ThixTunnel geplanten Verhaltensregeln sind im [Anwendungskonzept](docs/konzept.md#8-matmon-als-konkrete-referenz) dokumentiert.
-
-## Nächster Umsetzungsschritt
-
-Die erste Umsetzung soll SSH-Profile, einen Routen-Editor und den manuellen Verbindungsaufbau mit Statusanzeige abdecken. Darauf bauen Tray-Bedienung, Autostart, automatische Wiederverbindung und der Windows-Installer auf. Anforderungen und Abnahmekriterien stehen im [Konzept](docs/konzept.md).
+[Matmon](https://github.com/Real-TTX/Matmon) war die Referenz für Tray-Bedienung, Installationsablauf und das Update-Prinzip über rollierende GitHub-Releases je Kanal. ThixTunnel läuft im Benutzerkonto statt als Windows-Dienst und verwendet Inno Setup als Installer.

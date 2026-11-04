@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- ThixTunnel app icon, full detail (48 px and larger): a tunnel portal with a route of three hops through it. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1F3E6B"/>
+      <stop offset="1" stop-color="#0D1828"/>
+    </linearGradient>
+    <linearGradient id="arch" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3B8CF0"/>
+      <stop offset="1" stop-color="#6CB8FF"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="56" fill="url(#tile)"/>
+  <path d="M60 200 V124 A68 68 0 0 1 196 124 V200" fill="none" stroke="url(#arch)" stroke-width="22" stroke-linecap="round"/>
+  <polyline points="96,178 128,138 160,178" fill="none" stroke="#FFFFFF" stroke-opacity="0.85" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="96" cy="178" r="13" fill="#FFFFFF"/>
+  <circle cx="128" cy="138" r="13" fill="#FFFFFF"/>
+  <circle cx="160" cy="178" r="13" fill="#4ADE80"/>
+</svg>

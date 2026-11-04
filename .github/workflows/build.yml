@@ -1,0 +1,161 @@
+name: build
+
+# Builds, tests and packages ThixTunnel for every branch.
+#   main  -> release : <major>.<minor>.<run number>-<date>   e.g. 0.1.42-20261104
+#   dev   -> nightly : nightly-<run number>-<date>          e.g. nightly-43-20261104
+#   other -> local   : local-<date>                          (pull requests, feature branches)
+# The run number grows with every build of this workflow and is the build number the update check compares.
+#
+# Packages:
+#   every build      : workflow artifact "ThixTunnel-<version>" (setup + update manifest)
+#   main (push)      : rolling release "release-channel" (OTA feed of release builds) + versioned release "v<version>"
+#   dev  (push)      : rolling pre-release "nightly-channel" (OTA feed of nightly builds)
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Determine version metadata
+        id: ver
+        shell: bash
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            main) channel=release ;;
+            dev)  channel=nightly ;;
+            *)    channel=local ;;
+          esac
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then channel=local; fi
+          {
+            echo "channel=$channel"
+            echo "date=$(date -u +%Y%m%d)"
+            echo "build=${GITHUB_RUN_NUMBER}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore ThixTunnel.slnx
+
+      - name: Build
+        run: >
+          dotnet build ThixTunnel.slnx -c Release --no-restore
+          -p:Channel=${{ steps.ver.outputs.channel }}
+          -p:BuildNumber=${{ steps.ver.outputs.build }}
+          -p:BuildDate=${{ steps.ver.outputs.date }}
+
+      # The end-to-end tests need Docker SSH servers (scripts/e2e-docker.ps1) and are skipped here.
+      - name: Test
+        run: dotnet test ThixTunnel.slnx -c Release --no-build --filter "Category!=E2E" --logger GitHubActions
+
+      - name: Resolve version strings
+        id: appver
+        shell: bash
+        run: |
+          props="-p:Channel=${{ steps.ver.outputs.channel }} -p:BuildNumber=${{ steps.ver.outputs.build }} -p:BuildDate=${{ steps.ver.outputs.date }}"
+          version=$(dotnet msbuild src/ThixTunnel/ThixTunnel.csproj -getProperty:InformationalVersion $props | tr -d '[:space:]')
+          numeric=$(dotnet msbuild src/ThixTunnel/ThixTunnel.csproj -getProperty:Version $props | tr -d '[:space:]')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "numeric=$numeric" >> "$GITHUB_OUTPUT"
+          printf '### ThixTunnel\n\n- version: `%s`\n- channel: `%s`\n' "$version" "${{ steps.ver.outputs.channel }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish (win-x64, self-contained)
+        run: >
+          dotnet publish src/ThixTunnel/ThixTunnel.csproj -c Release -r win-x64 -o publish
+          -p:Channel=${{ steps.ver.outputs.channel }}
+          -p:BuildNumber=${{ steps.ver.outputs.build }}
+          -p:BuildDate=${{ steps.ver.outputs.date }}
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          if (-not (Test-Path $iscc)) { throw "Inno Setup not found" }
+          "ISCC=$iscc" >> $env:GITHUB_ENV
+
+      - name: Build setup
+        shell: pwsh
+        run: |
+          & $env:ISCC /Qp `
+            "/DAppVersion=${{ steps.appver.outputs.version }}" `
+            "/DAppNumericVersion=${{ steps.appver.outputs.numeric }}" `
+            "/DSourceDir=$PWD\publish" `
+            "/DOutputDir=$PWD\artifacts" `
+            installer\ThixTunnel.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
+      # The manifest the installed application reads for its update check (UpdateService).
+      - name: Write update manifest
+        shell: pwsh
+        run: |
+          $setup = "artifacts\ThixTunnelSetup.exe"
+          $manifest = [ordered]@{
+            version     = "${{ steps.appver.outputs.version }}"
+            channel     = "${{ steps.ver.outputs.channel }}"
+            buildNumber = [int]"${{ steps.ver.outputs.build }}"
+            setup       = "ThixTunnelSetup.exe"
+            sha256      = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+            publishedAt = (Get-Date).ToUniversalTime().ToString("o")
+          }
+          $manifest | ConvertTo-Json | Set-Content -Encoding utf8NoBOM artifacts\thixtunnel-update.json
+          Get-Content artifacts\thixtunnel-update.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ThixTunnel-${{ steps.appver.outputs.version }}
+          path: artifacts/
+          retention-days: 30
+
+      # One rolling release per channel; each build replaces its files. The setup goes up BEFORE the manifest,
+      # so an installation never reads a manifest whose setup is not there yet.
+      - name: Publish to the update channel
+        if: github.event_name == 'push' && steps.ver.outputs.channel != 'local'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          channel="${{ steps.ver.outputs.channel }}"
+          version="${{ steps.appver.outputs.version }}"
+          tag="${channel}-channel"
+          if [ "$channel" = "release" ]; then prerelease=""; title="ThixTunnel (Release-Kanal)"; else prerelease="--prerelease"; title="ThixTunnel (Nightly-Kanal)"; fi
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "$title" $prerelease \
+              --notes "Neuester Build des Kanals ${channel}. ThixTunnelSetup.exe installiert oder aktualisiert ThixTunnel; installierte Versionen aktualisieren sich von hier aus selbst."
+          fi
+          gh release upload "$tag" artifacts/ThixTunnelSetup.exe --clobber
+          gh release upload "$tag" artifacts/thixtunnel-update.json --clobber
+          gh release edit "$tag" --title "$title – $version"
+          echo "Published $version to $tag"
+
+      - name: Versioned release
+        if: github.event_name == 'push' && steps.ver.outputs.channel == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${{ steps.appver.outputs.version }}"
+          cp artifacts/ThixTunnelSetup.exe "artifacts/ThixTunnelSetup-${version}.exe"
+          gh release create "v${version}" --target "$GITHUB_SHA" --title "ThixTunnel ${version}" --generate-notes \
+            "artifacts/ThixTunnelSetup-${version}.exe"

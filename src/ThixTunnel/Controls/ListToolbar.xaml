@@ -1,0 +1,38 @@
+<UserControl x:Class="ThixTunnel.Controls.ListToolbar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Margin="0,0,0,12">
+  <!-- The toolbar above every list: search text, filter, sort field and direction. -->
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="340" />
+      <ColumnDefinition Width="Auto" />
+      <ColumnDefinition Width="Auto" />
+      <ColumnDefinition Width="Auto" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <Grid Grid.Column="0">
+      <TextBox x:Name="SearchBox" Padding="36,7,10,7" TextChanged="OnSearchChanged" ToolTip="Suchen" />
+      <TextBlock Text="{StaticResource IconSearch}" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource TextMutedBrush}"
+                 Margin="12,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
+      <TextBlock x:Name="Placeholder" Text="Suchen" Style="{StaticResource MutedText}" FontSize="14"
+                 Margin="37,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
+    </Grid>
+
+    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
+      <TextBlock Text="{StaticResource IconFilter}" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource TextMutedBrush}"
+                 VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Filter" />
+      <ComboBox x:Name="FilterBox" MinWidth="150" DisplayMemberPath="Label" SelectionChanged="OnSelectionChanged" ToolTip="Filter" />
+    </StackPanel>
+
+    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="12,0,0,0">
+      <TextBlock Text="{StaticResource IconSort}" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource TextMutedBrush}"
+                 VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Sortierung" />
+      <ComboBox x:Name="SortBox" MinWidth="140" DisplayMemberPath="Label" SelectionChanged="OnSelectionChanged" ToolTip="Sortieren nach" />
+    </StackPanel>
+
+    <Button x:Name="DirectionButton" Grid.Column="3" Style="{StaticResource IconButton}" Margin="6,0,0,0" MinHeight="36"
+            Content="{StaticResource IconUp}" Click="OnDirectionClick" ToolTip="Aufsteigend" />
+  </Grid>
+</UserControl>

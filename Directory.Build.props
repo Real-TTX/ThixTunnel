@@ -1,0 +1,55 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Company>Matthias Schmoldt</Company>
+    <Product>ThixTunnel</Product>
+    <Authors>Matthias Schmoldt</Authors>
+    <Copyright>© Matthias Schmoldt</Copyright>
+    <SatelliteResourceLanguages>de;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!--
+    Versioning (single source of truth: Major/Minor below). CI sets Channel / BuildNumber / BuildDate:
+      release : <major>.<minor>.<build>-<date>   e.g. 0.1.42-20261104   (branch main)
+      nightly : nightly-<build>-<date>          e.g. nightly-43-20261104 (branch dev)
+      local   : local-<date>                    e.g. local-20261104      (every local build)
+    The build number is the GitHub run number and increases with every build; the update check compares it.
+  -->
+  <PropertyGroup>
+    <ThixTunnelMajor>0</ThixTunnelMajor>
+    <ThixTunnelMinor>1</ThixTunnelMinor>
+
+    <BuildNumber Condition="'$(BuildNumber)' == ''">0</BuildNumber>
+    <Channel Condition="'$(Channel)' == ''">local</Channel>
+    <BuildDate Condition="'$(BuildDate)' == ''">$([System.DateTime]::UtcNow.ToString('yyyyMMdd'))</BuildDate>
+
+    <Version>$(ThixTunnelMajor).$(ThixTunnelMinor).$(BuildNumber)</Version>
+    <AssemblyVersion>$(ThixTunnelMajor).$(ThixTunnelMinor).0.0</AssemblyVersion>
+    <FileVersion>$(ThixTunnelMajor).$(ThixTunnelMinor).$(BuildNumber).0</FileVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Channel)' == 'release'">
+    <InformationalVersion>$(ThixTunnelMajor).$(ThixTunnelMinor).$(BuildNumber)-$(BuildDate)</InformationalVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Channel)' == 'nightly'">
+    <InformationalVersion>nightly-$(BuildNumber)-$(BuildDate)</InformationalVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Channel)' == 'local'">
+    <InformationalVersion>local-$(BuildDate)</InformationalVersion>
+  </PropertyGroup>
+
+  <!-- The running program needs channel and build number for the update check (AppInfo). -->
+  <ItemGroup>
+    <AssemblyMetadata Include="ThixTunnelChannel" Value="$(Channel)" />
+    <AssemblyMetadata Include="ThixTunnelBuildNumber" Value="$(BuildNumber)" />
+    <AssemblyMetadata Include="ThixTunnelRepository" Value="Real-TTX/ThixTunnel" />
+  </ItemGroup>
+
+</Project>

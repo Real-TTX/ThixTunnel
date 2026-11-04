@@ -1,0 +1,25 @@
+# Build output
+**/bin/
+**/obj/
+publish/
+artifacts/
+TestResults/
+*.log
+
+# IDE / OS
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+Thumbs.db
+.DS_Store
+
+# Secrets
+*.pfx
+*.pem
+*.key
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/worktrees/

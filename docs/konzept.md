@@ -1,6 +1,6 @@
 # ThixTunnel – Anwendungskonzept
 
-**Status: Konzeptphase.** Dieses Dokument beschreibt das geplante Verhalten von ThixTunnel. Es ist keine Aussage über bereits implementierte Funktionen oder einen verfügbaren Installer.
+**Status: Umsetzung begonnen (Version 0.1).** Dieses Dokument beschreibt das geplante Verhalten von ThixTunnel und bleibt die Grundlage der Umsetzung; den implementierten Stand beschreibt die [Projektübersicht](../README.md).
 
 [Projektübersicht](../README.md) · [Mockup-Galerie](mockups/README.md)
 

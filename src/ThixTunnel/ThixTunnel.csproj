@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The desktop application: WPF window, tray icon (WinForms NotifyIcon) and the SSH_ASKPASS helper (same exe).
+    Published self-contained for win-x64; the Inno Setup script (installer/ThixTunnel.iss) packs the publish folder.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>ThixTunnel</AssemblyName>
+    <RootNamespace>ThixTunnel</RootNamespace>
+    <ApplicationIcon>Assets\thixtunnel.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyTitle>ThixTunnel</AssemblyTitle>
+    <!-- WPF needs Per-Monitor-V2 in the manifest; the hint is meant for pure WinForms apps. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+  </PropertyGroup>
+
+  <!-- WPF and WinForms share type names (Application, MessageBox, UserControl ...): no global WinForms/Drawing usings. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ThixTunnel.Core\ThixTunnel.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\thixtunnel.ico" />
+    <Resource Include="Assets\logo-256.png" />
+  </ItemGroup>
+
+</Project>
