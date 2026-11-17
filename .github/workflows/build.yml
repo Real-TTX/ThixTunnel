@@ -143,8 +143,12 @@ jobs:
           path: artifacts/
           retention-days: 2
 
+  # Windows is the must; macOS joins when its job succeeded. GitHub's macOS runners are sometimes not available at all ("not
+  # acquired by Runner … capacity"): then the release goes out for Windows and the manifest names no macOS package (installed
+  # Macs keep their version until the next build that has one).
   publish:
     needs: [version, windows, macos]
+    if: always() && needs.version.result == 'success' && needs.windows.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -160,6 +164,13 @@ jobs:
           set -euo pipefail
           cd artifacts
           sha() { sha256sum "$1" | cut -d' ' -f1; }
+          mac=""
+          for rid in arm64 x64; do
+            if [ -f "ThixTunnel-macOS-${rid}.zip" ]; then
+              mac="${mac},
+              \"osx-${rid}\": { \"file\": \"ThixTunnel-macOS-${rid}.zip\", \"sha256\": \"$(sha "ThixTunnel-macOS-${rid}.zip")\" }"
+            fi
+          done
           cat > thixtunnel-update.json <<JSON
           {
             "version": "${{ needs.version.outputs.version }}",
@@ -169,13 +180,12 @@ jobs:
             "sha256": "$(sha ThixTunnelSetup.exe)",
             "publishedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "packages": {
-              "win-x64": { "file": "ThixTunnelSetup.exe", "sha256": "$(sha ThixTunnelSetup.exe)" },
-              "osx-arm64": { "file": "ThixTunnel-macOS-arm64.zip", "sha256": "$(sha ThixTunnel-macOS-arm64.zip)" },
-              "osx-x64": { "file": "ThixTunnel-macOS-x64.zip", "sha256": "$(sha ThixTunnel-macOS-x64.zip)" }
+              "win-x64": { "file": "ThixTunnelSetup.exe", "sha256": "$(sha ThixTunnelSetup.exe)" }${mac}
             }
           }
           JSON
           cat thixtunnel-update.json
+          node -e "JSON.parse(require('fs').readFileSync('thixtunnel-update.json','utf8'))"
           ls -l
 
       - uses: actions/upload-artifact@v4
@@ -187,13 +197,14 @@ jobs:
       # One rolling release per channel; each build replaces its files. The packages go up BEFORE the manifest,
       # so an installation never reads a manifest whose package is not there yet.
       - name: Publish to the update channel
-        if: github.event_name == 'push' && needs.version.outputs.channel != 'local'
+        if: github.event_name != 'pull_request' && needs.version.outputs.channel != 'local'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          shopt -s nullglob
           channel="${{ needs.version.outputs.channel }}"
           version="${{ needs.version.outputs.version }}"
           tag="${channel}-channel"
@@ -208,7 +219,7 @@ jobs:
           echo "Published $version to $tag"
 
       - name: Versioned release
-        if: github.event_name == 'push' && needs.version.outputs.channel == 'release'
+        if: github.event_name != 'pull_request' && needs.version.outputs.channel == 'release'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -217,7 +228,12 @@ jobs:
           set -euo pipefail
           version="${{ needs.version.outputs.version }}"
           cd artifacts
+          files=("ThixTunnelSetup-${version}.exe")
           cp ThixTunnelSetup.exe "ThixTunnelSetup-${version}.exe"
-          for arch in arm64 x64; do cp "ThixTunnel-macOS-${arch}.dmg" "ThixTunnel-${version}-macOS-${arch}.dmg"; done
-          gh release create "v${version}" --target "$GITHUB_SHA" --title "ThixTunnel ${version}" --generate-notes \
-            "ThixTunnelSetup-${version}.exe" "ThixTunnel-${version}-macOS-arm64.dmg" "ThixTunnel-${version}-macOS-x64.dmg"
+          for arch in arm64 x64; do
+            if [ -f "ThixTunnel-macOS-${arch}.dmg" ]; then
+              cp "ThixTunnel-macOS-${arch}.dmg" "ThixTunnel-${version}-macOS-${arch}.dmg"
+              files+=("ThixTunnel-${version}-macOS-${arch}.dmg")
+            fi
+          done
+          gh release create "v${version}" --target "$GITHUB_SHA" --title "ThixTunnel ${version}" --generate-notes "${files[@]}"

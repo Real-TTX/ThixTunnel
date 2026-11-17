@@ -126,4 +126,6 @@ Development builds are never a setup; a run with its own `THIXTUNNEL_DATA_DIR` i
   win-x64 single file = ThixTunnelSetup.exe), `macos` (macos-latest: build, test, publish osx-arm64 + osx-x64,
   `scripts/package-macos.sh` → ThixTunnel-macOS-<arch>.dmg/.zip), `publish` (manifest `thixtunnel-update.json`: version, channel,
   buildNumber, setup + sha256 for Windows, `packages` per platform). Push to main/dev uploads the packages, then the manifest, to the
-  rolling release `release-channel` / `nightly-channel`; main also creates `v<version>` with setup and both dmgs.
+  rolling release `release-channel` / `nightly-channel`; main also creates `v<version>` with setup and both dmgs. `publish` needs
+  only a green Windows job: when GitHub has no macOS runner ("not acquired … capacity") the release goes out for Windows and the
+  manifest names only the macOS packages that were built. Manual runs (workflow_dispatch) on main/dev publish too.
