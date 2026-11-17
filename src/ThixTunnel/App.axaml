@@ -1,0 +1,22 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ThixTunnel.App"
+             Name="ThixTunnel"
+             RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <!-- Fluent provides the templates of inputs, combo boxes, switches and scroll bars; Themes/*.axaml give them our look. -->
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#3D8EF7" RegionColor="#0F1826" ErrorText="#F87171" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+  </Application.Styles>
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://ThixTunnel/Themes/Dark.axaml" />
+        <ResourceInclude Source="avares://ThixTunnel/Themes/Controls.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

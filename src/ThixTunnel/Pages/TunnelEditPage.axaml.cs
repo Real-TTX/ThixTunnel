@@ -1,5 +1,10 @@
-using System.Windows;
-using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Data;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.LogicalTree;
+using Avalonia.Media;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Models;
@@ -12,8 +17,14 @@ public partial class TunnelEditPage : UserControl, IDisposable
 {
     private readonly TunnelRoute _route;
     private readonly bool _isNew;
-    private IReadOnlyList<SshProfile> _profiles;
     private readonly List<Guid> _hops;
+    private IReadOnlyList<SshProfile> _profiles;
+
+    /// <summary>For the XAML loader and previewer.</summary>
+    public TunnelEditPage()
+        : this(null)
+    {
+    }
 
     public TunnelEditPage(Guid? routeId)
     {
@@ -37,10 +48,12 @@ public partial class TunnelEditPage : UserControl, IDisposable
         TargetPortBox.Text = _route.TargetPort > 0 ? _route.TargetPort.ToString() : "";
         ConnectOnStartupToggle.IsChecked = _route.ConnectOnStartup;
         ReconnectToggle.IsChecked = _route.ReconnectOnFailure;
-        DeleteButton.Visibility = _isNew ? Visibility.Collapsed : Visibility.Visible;
+        DeleteButton.IsVisible = !_isNew;
         AutomationHint.Show("Automatische Verbindungen fragen nie nach Passwörtern oder Hostschlüsseln. " +
                             "Für alle Hops werden Schlüssel benötigt (SSH-Agent, Schlüsseldatei oder ein Passwort-Profil mit „Schlüssel beim ersten Anmelden anlegen“); unbekannte Hostschlüssel einmal manuell bestätigen.",
                             InfoSeverity.Info);
+        LocalAddressBox.TextChanged += (_, _) => RefreshLocalAddressHint();
+        RefreshLocalAddressHint();
 
         if (_profiles.Count == 0)
         {
@@ -55,7 +68,7 @@ public partial class TunnelEditPage : UserControl, IDisposable
 
         RenderHops();
         AppWindows.DataChanged += OnDataChanged;
-        Loaded += (_, _) => NameBox.Focus();
+        AttachedToVisualTree += (_, _) => NameBox.Focus();
     }
 
     public void Dispose() => AppWindows.DataChanged -= OnDataChanged;
@@ -106,17 +119,25 @@ public partial class TunnelEditPage : UserControl, IDisposable
             CornerRadius = new CornerRadius(15),
             Margin = new Thickness(0, 0, 14, 0),
             VerticalAlignment = VerticalAlignment.Center,
-            Child = new TextBlock { Text = (index + 1).ToString(), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeights.SemiBold },
+            Background = Ui.Brush("SelectionBrush"),
+            Child = new TextBlock { Text = (index + 1).ToString(), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold },
         };
-        number.SetResourceReference(Border.BackgroundProperty, "SelectionBrush");
 
-        var picker = new ComboBox { ItemsSource = _profiles, ItemTemplate = (DataTemplate)FindResource("ProfileItemTemplate"), SelectedItem = profile, MinWidth = 140 };
+        var picker = new ComboBox
+        {
+            ItemsSource = _profiles,
+            DisplayMemberBinding = new Binding(nameof(SshProfile.Name)),
+            SelectedItem = profile,
+            MinWidth = 140,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        Avalonia.Automation.AutomationProperties.SetName(picker, $"Hop {index + 1}");
         picker.SelectionChanged += (_, _) =>
         {
-            if (picker.SelectedItem is SshProfile selected)
+            if (picker.SelectedItem is SshProfile selected && selected.Id != _hops[index])
             {
                 _hops[index] = selected.Id;
-                RenderHops();
+                Ui.Post(RenderHops);
             }
         };
 
@@ -124,8 +145,8 @@ public partial class TunnelEditPage : UserControl, IDisposable
         {
             Text = (isLast ? "Zielserver" : "Sprungserver") + (profile is null ? "" : $" · {profile.DisplayAddress}"),
             Margin = new Thickness(0, 4, 0, 0),
+            Theme = Ui.Theme("MutedText"),
         };
-        role.SetResourceReference(StyleProperty, "MutedText");
 
         var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { picker, role } };
 
@@ -145,16 +166,23 @@ public partial class TunnelEditPage : UserControl, IDisposable
         row.Children.Add(buttons);
         row.Children.Add(texts);
 
-        var frame = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 0, 0, 10), Child = row };
-        frame.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
-        frame.SetResourceReference(Border.BackgroundProperty, "InputBrush");
-        return frame;
+        return new Border
+        {
+            BorderThickness = new Thickness(1),
+            BorderBrush = Ui.Brush("BorderBrush"),
+            Background = Ui.Brush("InputBrush"),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 12, 14, 12),
+            Margin = new Thickness(0, 0, 0, 10),
+            Child = row,
+        };
     }
 
-    private Button HopButton(string iconKey, string toolTip, bool isEnabled, Action action)
+    private static Button HopButton(string iconKey, string toolTip, bool isEnabled, Action action)
     {
-        var button = new Button { Content = FindResource(iconKey), ToolTip = toolTip, IsEnabled = isEnabled, Margin = new Thickness(6, 0, 0, 0) };
-        button.SetResourceReference(StyleProperty, "IconButton");
+        var button = new Button { Content = Ui.Icon(iconKey), IsEnabled = isEnabled, Margin = new Thickness(6, 0, 0, 0), Theme = Ui.Theme("IconButton") };
+        ToolTip.SetTip(button, toolTip);
+        Avalonia.Automation.AutomationProperties.SetName(button, toolTip);
         button.Click += (_, _) => action();
         return button;
     }
@@ -165,28 +193,31 @@ public partial class TunnelEditPage : UserControl, IDisposable
         RenderHops();
     }
 
-    private void OnAddHopClick(object sender, RoutedEventArgs e)
+    private void OnAddHopClick(object? sender, RoutedEventArgs e)
     {
         var unused = _profiles.FirstOrDefault(profile => !_hops.Contains(profile.Id)) ?? _profiles[0];
         _hops.Add(unused.Id);
         RenderHops();
     }
 
-    private void OnNewProfileClick(object sender, RoutedEventArgs e) => AppWindows.ShowProfileEditor(null);
+    private void OnNewProfileClick(object? sender, RoutedEventArgs e) => AppWindows.ShowProfileEditor(null);
 
-    private void OnLocalAddressChanged(object sender, TextChangedEventArgs e) =>
-        LocalAddressField.Hint = AccessPolicy.IsLoopback(LocalAddressBox.Text.Trim()) || LocalAddressBox.Text.Trim().Length == 0
-            ? "127.0.0.1 = nur dieser PC."
+    private void RefreshLocalAddressHint()
+    {
+        var address = (LocalAddressBox.Text ?? "").Trim();
+        LocalAddressField.Hint = address.Length == 0 || AccessPolicy.IsLoopback(address)
+            ? "127.0.0.1 = nur dieser Rechner."
             : "Achtung: Mit dieser Adresse ist der Tunnel auch für andere Rechner im Netzwerk erreichbar.";
+    }
 
     private TunnelRoute? Save()
     {
         var route = _route.Clone();
-        route.Name = NameBox.Text;
+        route.Name = NameBox.Text ?? "";
         route.HopProfileIds = [.. _hops];
-        route.LocalAddress = LocalAddressBox.Text;
+        route.LocalAddress = LocalAddressBox.Text ?? "";
         route.LocalPort = PageActions.ParsePort(LocalPortBox.Text);
-        route.TargetHost = TargetHostBox.Text;
+        route.TargetHost = TargetHostBox.Text ?? "";
         route.TargetPort = PageActions.ParsePort(TargetPortBox.Text);
         route.ConnectOnStartup = ConnectOnStartupToggle.IsChecked;
         route.ReconnectOnFailure = ReconnectToggle.IsChecked;
@@ -204,9 +235,9 @@ public partial class TunnelEditPage : UserControl, IDisposable
 
     private void SelectTabWithError()
     {
-        for (var index = 0; index < Tabs.Items.Count; index++)
+        for (var index = 0; index < Tabs.ItemCount; index++)
         {
-            if (Tabs.Items[index] is TabItem { Content: DependencyObject content } && HasError(content))
+            if (Tabs.Items[index] is TabItem tab && tab.GetLogicalDescendants().OfType<FormField>().Any(field => field.Error.Length > 0))
             {
                 Tabs.SelectedIndex = index;
                 return;
@@ -214,11 +245,7 @@ public partial class TunnelEditPage : UserControl, IDisposable
         }
     }
 
-    private static bool HasError(DependencyObject root) =>
-        LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>()
-            .Any(child => child is FormField { Error.Length: > 0 } || HasError(child));
-
-    private void OnSaveClick(object sender, RoutedEventArgs e)
+    private void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         if (Save() is not null)
         {
@@ -226,7 +253,7 @@ public partial class TunnelEditPage : UserControl, IDisposable
         }
     }
 
-    private void OnSaveConnectClick(object sender, RoutedEventArgs e)
+    private void OnSaveConnectClick(object? sender, RoutedEventArgs e)
     {
         if (Save() is not { } saved)
         {
@@ -245,11 +272,11 @@ public partial class TunnelEditPage : UserControl, IDisposable
         }
     }
 
-    private void OnBackClick(object sender, RoutedEventArgs e) => PageWindow.CloseHostOf(this);
+    private void OnBackClick(object? sender, RoutedEventArgs e) => PageWindow.CloseHostOf(this);
 
-    private void OnDeleteClick(object sender, RoutedEventArgs e)
+    private async void OnDeleteClick(object? sender, RoutedEventArgs e)
     {
-        if (ConfirmDialog.Ask(Window.GetWindow(this), "Tunnelroute löschen", $"„{_route.Name}“ wird getrennt und gelöscht. Die SSH-Profile bleiben erhalten.", "Löschen", isDestructive: true) &&
+        if (await ConfirmDialog.AskAsync(Ui.WindowOf(this), "Tunnelroute löschen", $"„{_route.Name}“ wird getrennt und gelöscht. Die SSH-Profile bleiben erhalten.", "Löschen", isDestructive: true) &&
             PageActions.Run(() => RouteService.Delete(_route.Id), MessageBar))
         {
             AppWindows.NotifyDataChanged();

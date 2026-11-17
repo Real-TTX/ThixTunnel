@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:ThixTunnel.Controls"
+             x:Class="ThixTunnel.Pages.AboutPage">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="20,16,20,20">
+      <controls:PageHeader Title="Über ThixTunnel" />
+
+      <Border Theme="{StaticResource Tile}" Padding="28,24">
+        <StackPanel>
+          <!-- Logo and name on top; the details below use the whole width (long paths) -->
+          <DockPanel Margin="0,0,0,20">
+            <Image DockPanel.Dock="Left" Source="/Assets/logo-256.png" Width="80" Height="80" Margin="0,0,24,0" VerticalAlignment="Top"
+                   RenderOptions.BitmapInterpolationMode="HighQuality" />
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock FontSize="30" FontWeight="SemiBold">
+                <Run Text="Thix" /><Run Text="Tunnel" Foreground="{StaticResource AccentHoverBrush}" />
+              </TextBlock>
+              <TextBlock Theme="{StaticResource MutedText}" FontSize="14" Margin="0,4,0,0"
+                         Text="SSH-Profile, mehrere Hops und lokale Portweiterleitungen – im Infobereich (Windows) oder in der Menüleiste (macOS)." />
+            </StackPanel>
+          </DockPanel>
+            <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Text="Version" Theme="{StaticResource MutedText}" Margin="0,0,0,8" />
+              <SelectableTextBlock x:Name="VersionText" Grid.Column="1" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="1" Text="Kanal" Theme="{StaticResource MutedText}" Margin="0,0,0,8" />
+              <SelectableTextBlock x:Name="ChannelText" Grid.Row="1" Grid.Column="1" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="2" Text="ssh" Theme="{StaticResource MutedText}" Margin="0,0,0,8" />
+              <SelectableTextBlock x:Name="SshText" Grid.Row="2" Grid.Column="1" Margin="0,0,0,8" TextWrapping="Wrap" />
+              <TextBlock Grid.Row="3" Text="Daten" Theme="{StaticResource MutedText}" Margin="0,0,0,8" />
+              <SelectableTextBlock x:Name="DataText" Grid.Row="3" Grid.Column="1" Margin="0,0,0,8" TextWrapping="Wrap" />
+              <TextBlock Grid.Row="4" Text="Autor" Theme="{StaticResource MutedText}" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Text="Matthias Schmoldt" />
+            </Grid>
+        </StackPanel>
+      </Border>
+
+      <controls:ActionBar>
+        <Button Theme="{StaticResource PrimaryButton}" Click="OnProjectClick">
+          <controls:IconLabel Icon="{StaticResource IconArrowRight}" Text="Projekt auf GitHub" />
+        </Button>
+        <Button Click="OnUpdatesClick">
+          <controls:IconLabel Icon="{StaticResource IconDownload}" Text="Updates" />
+        </Button>
+        <Button Click="OnBackClick">
+          <controls:IconLabel Icon="{StaticResource IconBack}" Text="Zurück" />
+        </Button>
+      </controls:ActionBar>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,23 +1,20 @@
-using System.Windows;
-using System.Windows.Controls;
+using Avalonia.Controls;
 
 namespace ThixTunnel;
 
 /// <summary>
-/// A separate window around one page (route editor, profiles, settings, about).
+/// A separate window around one page (route editor, profile editor, settings, about).
 /// The size never exceeds the work area, so every window also fits on small screens.
 /// </summary>
-public sealed class PageWindow : Window
+public sealed class PageWindow : ThemedWindow
 {
     public PageWindow(string key, string title, UserControl page, double width, double height)
     {
         Key = key;
         Title = $"{title} – ThixTunnel";
-        Icon = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/thixtunnel.ico"));
         Content = page;
-        NativeWindow.ApplyTheme(this);
 
-        var workArea = SystemParameters.WorkArea;
+        var workArea = WorkArea();
         MinWidth = Math.Min(360, workArea.Width);
         MinHeight = Math.Min(320, workArea.Height);
         Width = Math.Min(width, workArea.Width - 16);
@@ -29,19 +26,7 @@ public sealed class PageWindow : Window
     public string Key { get; }
 
     /// <summary>Closes the window that hosts the given page (the "Zurück" button of a page).</summary>
-    public static void CloseHostOf(DependencyObject page) => GetWindow(page)?.Close();
-
-    /// <summary>Brings the window to the front, also when it was minimized.</summary>
-    public void BringToFront()
-    {
-        Show();
-        if (WindowState == WindowState.Minimized)
-        {
-            WindowState = WindowState.Normal;
-        }
-
-        Activate();
-    }
+    public static void CloseHostOf(Control page) => Ui.WindowOf(page)?.Close();
 
     protected override void OnClosed(EventArgs e)
     {

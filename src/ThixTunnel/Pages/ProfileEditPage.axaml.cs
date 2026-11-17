@@ -1,6 +1,6 @@
-using System.Windows;
-using System.Windows.Controls;
-using Microsoft.Win32;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Models;
@@ -14,6 +14,12 @@ public partial class ProfileEditPage : UserControl
     private readonly SshProfile _profile;
     private readonly bool _isNew;
 
+    /// <summary>For the XAML loader and previewer.</summary>
+    public ProfileEditPage()
+        : this(null)
+    {
+    }
+
     public ProfileEditPage(Guid? profileId)
     {
         InitializeComponent();
@@ -23,6 +29,9 @@ public partial class ProfileEditPage : UserControl
         _profile = existing ?? new SshProfile { UserName = Environment.UserName.ToLowerInvariant() };
 
         Header.Title = _isNew ? "Neues SSH-Profil" : "SSH-Profil bearbeiten";
+        AgentDescription.Text = OperatingSystem.IsWindows()
+            ? @"Schlüssel aus dem Windows-OpenSSH-Agenten oder aus %USERPROFILE%\.ssh. Empfohlen – auch für automatische Verbindungen."
+            : "Schlüssel aus dem ssh-agent (macOS: auch aus dem Schlüsselbund) oder aus ~/.ssh. Empfohlen – auch für automatische Verbindungen.";
         NameBox.Text = _profile.Name;
         HostBox.Text = _profile.HostName;
         PortBox.Text = _profile.Port.ToString();
@@ -33,7 +42,7 @@ public partial class ProfileEditPage : UserControl
         AgentOption.IsChecked = _profile.AuthenticationMethod == SshAuthenticationMethod.Agent;
         KeyFileOption.IsChecked = _profile.AuthenticationMethod == SshAuthenticationMethod.KeyFile;
         PasswordOption.IsChecked = _profile.AuthenticationMethod == SshAuthenticationMethod.Password;
-        DeleteButton.Visibility = _isNew ? Visibility.Collapsed : Visibility.Visible;
+        DeleteButton.IsVisible = !_isNew;
 
         var routes = _isNew ? [] : ProfileService.GetRouteNamesUsing(_profile.Id);
         UsageText.Text = routes.Count == 0 ? "" : $"Verwendet in: {string.Join(", ", routes)}";
@@ -44,8 +53,13 @@ public partial class ProfileEditPage : UserControl
             SaveButton.IsEnabled = DeleteButton.IsEnabled = false;
         }
 
+        foreach (var option in new[] { AgentOption, KeyFileOption, PasswordOption })
+        {
+            option.IsCheckedChanged += (_, _) => RefreshAuthentication();
+        }
+
         RefreshAuthentication();
-        Loaded += (_, _) => NameBox.Focus();
+        AttachedToVisualTree += (_, _) => NameBox.Focus();
     }
 
     private SshAuthenticationMethod SelectedMethod =>
@@ -53,51 +67,46 @@ public partial class ProfileEditPage : UserControl
         : PasswordOption.IsChecked == true ? SshAuthenticationMethod.Password
         : SshAuthenticationMethod.Agent;
 
-    /// <summary>The key file input only makes sense for the key file method.</summary>
+    /// <summary>The key file input only makes sense for the key file method, the key setup only for passwords.</summary>
     private void RefreshAuthentication()
     {
-        if (KeyFileTile is not null)
-        {
-            KeyFileTile.Visibility = SelectedMethod == SshAuthenticationMethod.KeyFile ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        if (KeySetupTile is not null)
-        {
-            KeySetupTile.Visibility = SelectedMethod == SshAuthenticationMethod.Password ? Visibility.Visible : Visibility.Collapsed;
-        }
+        KeyFileTile.IsVisible = SelectedMethod == SshAuthenticationMethod.KeyFile;
+        KeySetupTile.IsVisible = SelectedMethod == SshAuthenticationMethod.Password;
     }
 
-    private void OnAuthenticationChanged(object sender, RoutedEventArgs e) => RefreshAuthentication();
-
-    private void OnBrowseKeyClick(object sender, RoutedEventArgs e)
+    private async void OnBrowseKeyClick(object? sender, RoutedEventArgs e)
     {
+        if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage)
+        {
+            return;
+        }
+
         var sshDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh");
-        var dialog = new OpenFileDialog
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Private Schlüsseldatei wählen",
-            InitialDirectory = Directory.Exists(sshDirectory) ? sshDirectory : "",
-            Filter = "Alle Dateien (*.*)|*.*",
-        };
-        if (dialog.ShowDialog(Window.GetWindow(this)) == true)
+            SuggestedStartLocation = Directory.Exists(sshDirectory) ? await storage.TryGetFolderFromPathAsync(sshDirectory) : null,
+            FileTypeFilter = [FilePickerFileTypes.All],
+        });
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
         {
-            KeyFileBox.Text = dialog.FileName;
+            KeyFileBox.Text = path;
         }
     }
 
-    private void OnSaveClick(object sender, RoutedEventArgs e)
+    private void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         var profile = _profile.Clone();
-        profile.Name = NameBox.Text;
-        profile.HostName = HostBox.Text;
+        profile.Name = NameBox.Text ?? "";
+        profile.HostName = HostBox.Text ?? "";
         profile.Port = PageActions.ParsePort(PortBox.Text);
-        profile.UserName = UserBox.Text;
-        profile.Description = DescriptionBox.Text;
+        profile.UserName = UserBox.Text ?? "";
+        profile.Description = DescriptionBox.Text ?? "";
         profile.AuthenticationMethod = SelectedMethod;
-        profile.KeyFilePath = KeyFileBox.Text;
+        profile.KeyFilePath = KeyFileBox.Text ?? "";
         profile.SetUpKeyOnFirstLogin = KeySetupToggle.IsChecked;
 
-        SshProfile? saved = null;
-        if (PageActions.Run(() => saved = ProfileService.Save(profile), MessageBar, Form))
+        if (PageActions.Run(() => ProfileService.Save(profile), MessageBar, Form))
         {
             AppWindows.NotifyDataChanged();
             GoBack();
@@ -105,19 +114,16 @@ public partial class ProfileEditPage : UserControl
         }
 
         // Show the tab that holds the error.
-        Tabs.SelectedIndex = KeyFileTile.Visibility == Visibility.Visible && HasKeyFileError() ? 1 : 0;
+        Tabs.SelectedIndex = KeyFileTile.IsVisible && KeyFileField.Error.Length > 0 ? 1 : 0;
     }
 
-    private bool HasKeyFileError() =>
-        LogicalTreeHelper.GetChildren(KeyFileTile).OfType<FormField>().Any(field => field.Error.Length > 0);
-
-    private void OnBackClick(object sender, RoutedEventArgs e) => GoBack();
+    private void OnBackClick(object? sender, RoutedEventArgs e) => GoBack();
 
     private void GoBack() => PageWindow.CloseHostOf(this);
 
-    private void OnDeleteClick(object sender, RoutedEventArgs e)
+    private async void OnDeleteClick(object? sender, RoutedEventArgs e)
     {
-        if (ConfirmDialog.Ask(Window.GetWindow(this), "SSH-Profil löschen", $"„{_profile.Name}“ wird gelöscht.", "Löschen", isDestructive: true) &&
+        if (await ConfirmDialog.AskAsync(Ui.WindowOf(this), "SSH-Profil löschen", $"„{_profile.Name}“ wird gelöscht.", "Löschen", isDestructive: true) &&
             PageActions.Run(() => ProfileService.Delete(_profile.Id), MessageBar))
         {
             AppWindows.NotifyDataChanged();

@@ -1,27 +1,34 @@
-using System.Windows;
-using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 
 namespace ThixTunnel.Controls;
 
 /// <summary>The SSH hops of a route as numbered chips with arrows: [1 Profil 1] → [2 Profil 2] → [Ziel 127.0.0.1:4453].</summary>
 public sealed class HopChain : WrapPanel
 {
-    public static readonly DependencyProperty HopsProperty = DependencyProperty.Register(
-        nameof(Hops), typeof(IReadOnlyList<string>), typeof(HopChain), new PropertyMetadata(null, (sender, _) => ((HopChain)sender).Refresh()));
+    public static readonly StyledProperty<IReadOnlyList<string>?> HopsProperty =
+        AvaloniaProperty.Register<HopChain, IReadOnlyList<string>?>(nameof(Hops));
 
-    public static readonly DependencyProperty TargetProperty = DependencyProperty.Register(
-        nameof(Target), typeof(string), typeof(HopChain), new PropertyMetadata("", (sender, _) => ((HopChain)sender).Refresh()));
+    public static readonly StyledProperty<string> TargetProperty = AvaloniaProperty.Register<HopChain, string>(nameof(Target), "");
+
+    static HopChain()
+    {
+        HopsProperty.Changed.AddClassHandler<HopChain>((chain, _) => chain.Refresh());
+        TargetProperty.Changed.AddClassHandler<HopChain>((chain, _) => chain.Refresh());
+    }
 
     public IReadOnlyList<string>? Hops
     {
-        get => (IReadOnlyList<string>?)GetValue(HopsProperty);
+        get => GetValue(HopsProperty);
         set => SetValue(HopsProperty, value);
     }
 
     /// <summary>Optional last chip: the forwarding target.</summary>
     public string Target
     {
-        get => (string)GetValue(TargetProperty);
+        get => GetValue(TargetProperty);
         set => SetValue(TargetProperty, value);
     }
 
@@ -57,13 +64,14 @@ public sealed class HopChain : WrapPanel
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(7, 1, 7, 2),
             Margin = new Thickness(0, 0, 10, 0),
-            Child = new TextBlock { Text = number, FontSize = 13, FontWeight = FontWeights.SemiBold },
+            Background = Ui.Brush("SelectionBrush"),
+            Child = new TextBlock { Text = number, FontSize = 13, FontWeight = FontWeight.SemiBold },
         };
-        numberBadge.SetResourceReference(Border.BackgroundProperty, "SelectionBrush");
 
-        var chip = new Border
+        return new Border
         {
             BorderThickness = new Thickness(1),
+            BorderBrush = Ui.Brush("BorderBrush"),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(8, 6, 12, 6),
             Margin = new Thickness(0, 0, 0, 8),
@@ -73,16 +81,15 @@ public sealed class HopChain : WrapPanel
                 Children = { numberBadge, new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center } },
             },
         };
-        chip.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
-        return chip;
     }
 
-    private static TextBlock Arrow()
+    private static TextBlock Arrow() => new()
     {
-        var arrow = new TextBlock { Margin = new Thickness(12, 0, 12, 8), VerticalAlignment = VerticalAlignment.Center, FontSize = 14 };
-        arrow.SetResourceReference(TextBlock.FontFamilyProperty, "IconFont");
-        arrow.SetResourceReference(TextBlock.TextProperty, "IconArrowRight");
-        arrow.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
-        return arrow;
-    }
+        Margin = new Thickness(12, 0, 12, 8),
+        VerticalAlignment = VerticalAlignment.Center,
+        FontSize = 14,
+        FontFamily = Ui.IconFont,
+        Text = Ui.Icon("IconArrowRight"),
+        Foreground = Ui.Brush("TextMutedBrush"),
+    };
 }

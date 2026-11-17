@@ -1,51 +1,49 @@
-using System.Windows;
-using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
 
 namespace ThixTunnel.Controls;
 
 /// <summary>
 /// The row of buttons below a list or form: left-aligned, in one line, from positive to negative.
-/// A button with <c>ActionBar.Separated="True"</c> (delete) gets a clear gap before it.
+/// A button with <c>controls:ActionBar.Separated="True"</c> (delete) gets a clear gap before it.
+/// In a narrow window the buttons continue on the next line (order unchanged).
 /// </summary>
-/// <example>
-/// &lt;controls:ActionBar&gt;
-///   &lt;Button Content="Speichern" /&gt; &lt;Button Content="Zurück" /&gt;
-///   &lt;Button Content="Löschen" controls:ActionBar.Separated="True" /&gt;
-/// &lt;/controls:ActionBar&gt;
-/// </example>
 public sealed class ActionBar : Panel
 {
-    public static readonly DependencyProperty SeparatedProperty = DependencyProperty.RegisterAttached(
-        "Separated", typeof(bool), typeof(ActionBar),
-        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsParentArrange | FrameworkPropertyMetadataOptions.AffectsParentMeasure));
+    public static readonly AttachedProperty<bool> SeparatedProperty =
+        AvaloniaProperty.RegisterAttached<ActionBar, Control, bool>("Separated");
 
-    public static readonly DependencyProperty SpacingProperty = DependencyProperty.Register(
-        nameof(Spacing), typeof(double), typeof(ActionBar), new FrameworkPropertyMetadata(8.0, FrameworkPropertyMetadataOptions.AffectsMeasure));
+    public static readonly StyledProperty<double> SpacingProperty = AvaloniaProperty.Register<ActionBar, double>(nameof(Spacing), 8);
 
-    public static readonly DependencyProperty SeparationProperty = DependencyProperty.Register(
-        nameof(Separation), typeof(double), typeof(ActionBar), new FrameworkPropertyMetadata(40.0, FrameworkPropertyMetadataOptions.AffectsMeasure));
+    public static readonly StyledProperty<double> SeparationProperty = AvaloniaProperty.Register<ActionBar, double>(nameof(Separation), 40);
+
+    static ActionBar()
+    {
+        AffectsParentMeasure<ActionBar>(SeparatedProperty);
+        AffectsMeasure<ActionBar>(SpacingProperty, SeparationProperty);
+    }
 
     public double Spacing
     {
-        get => (double)GetValue(SpacingProperty);
+        get => GetValue(SpacingProperty);
         set => SetValue(SpacingProperty, value);
     }
 
     public double Separation
     {
-        get => (double)GetValue(SeparationProperty);
+        get => GetValue(SeparationProperty);
         set => SetValue(SeparationProperty, value);
     }
 
-    public static bool GetSeparated(UIElement element) => (bool)element.GetValue(SeparatedProperty);
+    public static bool GetSeparated(Control element) => element.GetValue(SeparatedProperty);
 
-    public static void SetSeparated(UIElement element, bool value) => element.SetValue(SeparatedProperty, value);
+    public static void SetSeparated(Control element, bool value) => element.SetValue(SeparatedProperty, value);
 
     protected override Size MeasureOverride(Size availableSize)
     {
         foreach (var child in VisibleChildren())
         {
-            child.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            child.Measure(Size.Infinity);
         }
 
         var lines = Layout(availableSize.Width);
@@ -69,9 +67,6 @@ public sealed class ActionBar : Panel
         return finalSize;
     }
 
-    /// <summary>
-    /// In one line while it fits; in a narrow window the buttons continue on the next line (order unchanged).
-    /// </summary>
     private List<Line> Layout(double availableWidth)
     {
         var lines = new List<Line>();
@@ -99,11 +94,11 @@ public sealed class ActionBar : Panel
         return lines;
     }
 
-    private IEnumerable<UIElement> VisibleChildren() => InternalChildren.Cast<UIElement>().Where(child => child.Visibility != Visibility.Collapsed);
+    private IEnumerable<Control> VisibleChildren() => Children.Where(child => child.IsVisible);
 
     private sealed class Line
     {
-        public List<(UIElement Child, double X)> Items { get; } = [];
+        public List<(Control Child, double X)> Items { get; } = [];
 
         public double Width { get; set; }
 

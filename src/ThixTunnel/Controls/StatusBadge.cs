@@ -1,7 +1,7 @@
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Shapes;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using Avalonia.Layout;
 using ThixTunnel.Core.Models;
 
 namespace ThixTunnel.Controls;
@@ -9,11 +9,15 @@ namespace ThixTunnel.Controls;
 /// <summary>The pill with a coloured dot and the state as text ("Verbunden", "Getrennt", ...).</summary>
 public sealed class StatusBadge : Border
 {
-    public static readonly DependencyProperty StatusProperty = DependencyProperty.Register(
-        nameof(Status), typeof(TunnelStatus), typeof(StatusBadge), new PropertyMetadata(null, (sender, _) => ((StatusBadge)sender).Refresh()));
+    public static readonly StyledProperty<TunnelStatus?> StatusProperty = AvaloniaProperty.Register<StatusBadge, TunnelStatus?>(nameof(Status));
 
     private readonly Ellipse _dot = new() { Width = 9, Height = 9, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _text = new() { FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
+
+    static StatusBadge()
+    {
+        StatusProperty.Changed.AddClassHandler<StatusBadge>((badge, _) => badge.Refresh());
+    }
 
     public StatusBadge()
     {
@@ -27,7 +31,7 @@ public sealed class StatusBadge : Border
 
     public TunnelStatus? Status
     {
-        get => (TunnelStatus?)GetValue(StatusProperty);
+        get => GetValue(StatusProperty);
         set => SetValue(StatusProperty, value);
     }
 
@@ -52,9 +56,9 @@ public sealed class StatusBadge : Border
     private void Refresh()
     {
         var (dot, background) = BrushKeys(Status);
-        _dot.SetResourceReference(Shape.FillProperty, dot);
-        SetResourceReference(BackgroundProperty, background);
+        _dot.Fill = Ui.Brush(dot);
+        Background = Ui.Brush(background);
         _text.Text = Label(Status);
-        ToolTip = string.IsNullOrEmpty(Status?.Message) ? null : Status.Message;
+        ToolTip.SetTip(this, string.IsNullOrEmpty(Status?.Message) ? null : Status.Message);
     }
 }

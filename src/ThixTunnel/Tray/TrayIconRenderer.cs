@@ -1,7 +1,7 @@
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Runtime.InteropServices;
-using Forms = System.Windows.Forms;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
 
 namespace ThixTunnel.Tray;
 
@@ -14,70 +14,63 @@ public enum TrayState
 }
 
 /// <summary>
-/// Draws the tray glyph (branding/logo-tray.svg: portal + node, no tile) with a status dot bottom right.
+/// Draws the tray / menu bar glyph (branding/logo-tray.svg: portal + node, no tile) with a status dot bottom right.
 /// The four icons are made once and reused.
 /// </summary>
 internal static class TrayIconRenderer
 {
-    private static readonly Dictionary<TrayState, Icon> Cache = [];
+    private const int Size = 64;
 
-    public static Icon Get(TrayState state)
+    private static readonly Dictionary<TrayState, WindowIcon> Cache = [];
+
+    public static WindowIcon Get(TrayState state)
     {
         if (!Cache.TryGetValue(state, out var icon))
         {
-            icon = Render(state, Forms.SystemInformation.SmallIconSize.Width);
+            icon = Render(state);
             Cache[state] = icon;
         }
 
         return icon;
     }
 
-    private static Icon Render(TrayState state, int size)
+    private static WindowIcon Render(TrayState state)
     {
-        using var bitmap = new Bitmap(size, size);
-        using (var graphics = Graphics.FromImage(bitmap))
+        using var bitmap = new RenderTargetBitmap(new PixelSize(Size, Size), new Vector(96, 96));
+        using (var context = bitmap.CreateDrawingContext())
         {
-            graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            graphics.Clear(Color.Transparent);
-            graphics.ScaleTransform(size / 256f, size / 256f);
+            using var scale = context.PushTransform(Matrix.CreateScale(Size / 256.0, Size / 256.0));
 
-            using var portal = new GraphicsPath();
-            portal.AddLine(44, 224, 44, 120);
-            portal.AddArc(44, 36, 168, 168, 180, 180);
-            portal.AddLine(212, 120, 212, 224);
-            using var pen = new Pen(Color.FromArgb(0x4D, 0xA3, 0xFF), 44) { StartCap = LineCap.Round, EndCap = LineCap.Round };
-            graphics.DrawPath(pen, portal);
-            using var node = new SolidBrush(Color.FromArgb(0xE8, 0xEE, 0xF7));
-            graphics.FillEllipse(node, 128 - 34, 164 - 34, 68, 68);
-
-            var dotColor = state switch
+            var portal = new StreamGeometry();
+            using (var figure = portal.Open())
             {
-                TrayState.Connected => Color.FromArgb(0x4A, 0xDE, 0x80),
-                TrayState.Busy => Color.FromArgb(0xFB, 0xBF, 0x24),
-                TrayState.Error => Color.FromArgb(0xF8, 0x71, 0x71),
-                _ => Color.Empty,
+                figure.BeginFigure(new Point(44, 224), isFilled: false);
+                figure.LineTo(new Point(44, 120));
+                figure.ArcTo(new Point(212, 120), new Size(84, 84), 0, isLargeArc: false, SweepDirection.Clockwise);
+                figure.LineTo(new Point(212, 224));
+                figure.EndFigure(isClosed: false);
+            }
+
+            context.DrawGeometry(null, new Pen(new SolidColorBrush(Color.FromRgb(0x4D, 0xA3, 0xFF)), 44, lineCap: PenLineCap.Round), portal);
+            context.DrawEllipse(new SolidColorBrush(Color.FromRgb(0xE8, 0xEE, 0xF7)), null, new Point(128, 164), 34, 34);
+
+            Color? dot = state switch
+            {
+                TrayState.Connected => Color.FromRgb(0x4A, 0xDE, 0x80),
+                TrayState.Busy => Color.FromRgb(0xFB, 0xBF, 0x24),
+                TrayState.Error => Color.FromRgb(0xF8, 0x71, 0x71),
+                _ => null,
             };
-            if (dotColor != Color.Empty)
+            if (dot is { } color)
             {
-                using var ring = new SolidBrush(Color.FromArgb(0x11, 0x1C, 0x2D));
-                graphics.FillEllipse(ring, 140, 140, 116, 116);
-                using var dot = new SolidBrush(dotColor);
-                graphics.FillEllipse(dot, 158, 158, 80, 80);
+                context.DrawEllipse(new SolidColorBrush(Color.FromRgb(0x11, 0x1C, 0x2D)), null, new Point(198, 198), 58, 58);
+                context.DrawEllipse(new SolidColorBrush(color), null, new Point(198, 198), 40, 40);
             }
         }
 
-        var handle = bitmap.GetHicon();
-        try
-        {
-            return (Icon)Icon.FromHandle(handle).Clone();
-        }
-        finally
-        {
-            DestroyIcon(handle);
-        }
+        using var png = new MemoryStream();
+        bitmap.Save(png);
+        png.Position = 0;
+        return new WindowIcon(png);
     }
-
-    [DllImport("user32.dll")]
-    private static extern bool DestroyIcon(IntPtr handle);
 }

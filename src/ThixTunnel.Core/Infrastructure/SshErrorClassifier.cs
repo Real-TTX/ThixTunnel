@@ -56,7 +56,7 @@ internal static class SshErrorClassifier
         TunnelProblem.HostUnreachable => "Server nicht erreichbar",
         TunnelProblem.LocalPortInUse => "Lokaler Port ist bereits belegt",
         TunnelProblem.ForwardingRefused => "Server erlaubt keine Portweiterleitung",
-        TunnelProblem.SshNotFound => "ssh.exe nicht gefunden – OpenSSH-Client installieren",
+        TunnelProblem.SshNotFound => "ssh nicht gefunden – OpenSSH-Client installieren",
         TunnelProblem.ConnectionLost => "Verbindung unterbrochen",
         TunnelProblem.Unknown => "Verbindung beendet",
         _ => "",

@@ -3,7 +3,7 @@ using ThixTunnel.Core.Infrastructure;
 
 namespace ThixTunnel.Tests;
 
-/// <summary>Every test gets an empty data folder of its own and no machine policies.</summary>
+/// <summary>Every test gets an empty data folder of its own, no machine policies and its own LaunchAgents folder (macOS).</summary>
 public sealed class TestData : IDisposable
 {
     public TestData()
@@ -12,6 +12,7 @@ public sealed class TestData : IDisposable
         System.IO.Directory.CreateDirectory(Directory);
         AppPaths.UseDirectoryForTests(Directory);
         AccessPolicy.UsePolicyReaderForTests(_ => false);
+        AutostartService.UseLaunchAgentFolderForTests(Path.Combine(Directory, "LaunchAgents"));
         DataStore.Reset();
     }
 
@@ -21,6 +22,7 @@ public sealed class TestData : IDisposable
     {
         DataStore.Reset();
         AccessPolicy.UsePolicyReaderForTests(null);
+        AutostartService.UseLaunchAgentFolderForTests(null);
         AppPaths.UseDirectoryForTests(null);
         try
         {

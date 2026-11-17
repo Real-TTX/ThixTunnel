@@ -101,10 +101,10 @@ public static partial class KeySetupService
             File.Delete(privateKey);
             File.Delete(publicKeyFile);
 
-            var keygen = Path.Combine(Path.GetDirectoryName(sshExecutable) ?? "", "ssh-keygen.exe");
+            var keygen = SshExecutable.Sibling(sshExecutable, "ssh-keygen");
             if (!File.Exists(keygen))
             {
-                throw new BusinessException("ssh-keygen.exe wurde neben ssh.exe nicht gefunden.");
+                throw new BusinessException("ssh-keygen wurde neben ssh nicht gefunden.");
             }
 
             var comment = SafeCommentPattern().Replace($"thixtunnel-{Environment.MachineName}-{profile.Name}", "-");

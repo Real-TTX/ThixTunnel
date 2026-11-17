@@ -24,7 +24,7 @@ public static class SettingsService
         settings.SshExecutablePath = (settings.SshExecutablePath ?? "").Trim();
         if (settings.SshExecutablePath.Length > 0 && !File.Exists(settings.SshExecutablePath))
         {
-            throw new BusinessException("Die angegebene ssh.exe wurde nicht gefunden.", nameof(AppSettings.SshExecutablePath));
+            throw new BusinessException("Das angegebene ssh-Programm wurde nicht gefunden.", nameof(AppSettings.SshExecutablePath));
         }
 
         if (!settings.CheckForUpdates)

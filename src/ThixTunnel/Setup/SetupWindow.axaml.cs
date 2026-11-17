@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Windows;
+using System.Runtime.Versioning;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Infrastructure;
@@ -8,10 +9,11 @@ using ThixTunnel.Core.Infrastructure;
 namespace ThixTunnel.Setup;
 
 /// <summary>
-/// The setup assistant. The work (InstallService, business layer) runs on a background task and reports its
+/// The Windows setup assistant. The work (InstallService, business layer) runs on a background task and reports its
 /// steps into the progress page; the window only steers. It cannot be closed halfway through.
 /// </summary>
-public partial class SetupWindow : Window
+[SupportedOSPlatform("windows")]
+public partial class SetupWindow : ThemedWindow
 {
     private readonly bool _isUninstall;
     private readonly bool _isUpdate;
@@ -20,11 +22,16 @@ public partial class SetupWindow : Window
     private bool _isFinished;
     private bool _succeeded;
 
+    /// <summary>For the XAML previewer only.</summary>
+    public SetupWindow()
+        : this(isUninstall: false)
+    {
+    }
+
     private SetupWindow(bool isUninstall)
     {
         InitializeComponent();
-        NativeWindow.ApplyTheme(this);
-        var workArea = SystemParameters.WorkArea;
+        var workArea = WorkArea();
         Width = Math.Min(Width, workArea.Width - 16);
         Height = Math.Min(Height, workArea.Height - 16);
 
@@ -46,15 +53,16 @@ public partial class SetupWindow : Window
     /// <summary>True when the program folder has to be removed after this process ended (uninstall from the program folder).</summary>
     public bool RemoveProgramFolderOnExit { get; private set; }
 
-    /// <summary>Shows the assistant; returns when it was closed.</summary>
-    public static SetupWindow Run(bool isUninstall)
+    /// <summary>Shows the assistant; <paramref name="finished"/> gets <see cref="RemoveProgramFolderOnExit"/> when it was closed.</summary>
+    public static void Run(bool isUninstall, Action<bool> finished)
     {
         var window = new SetupWindow(isUninstall);
-        window.ShowDialog();
-        return window;
+        window.Closed += (_, _) => finished(window.RemoveProgramFolderOnExit);
+        window.Show();
+        window.Activate();
     }
 
-    protected override void OnClosing(CancelEventArgs e)
+    protected override void OnClosing(WindowClosingEventArgs e)
     {
         // Half an installation is worse than a slow one.
         e.Cancel = _isWorking;
@@ -71,7 +79,7 @@ public partial class SetupWindow : Window
             WelcomeTitle.Text = "Update";
             WelcomeText.Text = $"Installiert ist {InstallService.InstalledVersion ?? "eine ältere Version"}, dieses Setup bringt {AppInfo.Version}. " +
                                "Ein laufendes ThixTunnel wird beendet; aktive Tunnel werden danach wieder verbunden. Profile und Verbindungen bleiben erhalten.";
-            OptionsTile.Visibility = Visibility.Collapsed;
+            OptionsTile.IsVisible = false;
             PrimaryLabel.Text = "Aktualisieren";
         }
         else
@@ -82,7 +90,7 @@ public partial class SetupWindow : Window
         }
 
         PlaceInfo.Show($"Wird für dein Benutzerkonto installiert – ohne Administratorrechte – nach {InstallService.ProgramFolder}.", InfoSeverity.Info);
-        if (!File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "OpenSSH", "ssh.exe")))
+        if (Ui.SystemSshPath is null)
         {
             SshHint.Show("Der Windows-OpenSSH-Client (ssh.exe) wurde nicht gefunden. ThixTunnel braucht ihn für die Verbindungen: " +
                          "Einstellungen › System › Optionale Features › „OpenSSH-Client“.", InfoSeverity.Warning);
@@ -93,15 +101,15 @@ public partial class SetupWindow : Window
     {
         Title = "ThixTunnel deinstallieren";
         ModeText.Text = "Deinstallation";
-        WelcomePage.Visibility = Visibility.Collapsed;
-        ConfirmPage.Visibility = Visibility.Visible;
-        PrimaryButton.SetResourceReference(StyleProperty, "DangerButton");
+        WelcomePage.IsVisible = false;
+        ConfirmPage.IsVisible = true;
+        PrimaryButton.Theme = Ui.Theme("DangerButton");
         PrimaryButton.IsDefault = false;
-        PrimaryLabel.Icon = (string)FindResource("IconDelete");
+        PrimaryLabel.Icon = Ui.Icon("IconDelete");
         PrimaryLabel.Text = "Deinstallieren";
     }
 
-    private async void OnPrimaryClick(object sender, RoutedEventArgs e)
+    private async void OnPrimaryClick(object? sender, RoutedEventArgs e)
     {
         if (_isFinished)
         {
@@ -117,20 +125,20 @@ public partial class SetupWindow : Window
         await RunAsync();
     }
 
-    private void OnCancelClick(object sender, RoutedEventArgs e) => Close();
+    private void OnCancelClick(object? sender, RoutedEventArgs e) => Close();
 
     private async Task RunAsync()
     {
         _isWorking = true;
-        WelcomePage.Visibility = ConfirmPage.Visibility = Visibility.Collapsed;
-        ProgressPage.Visibility = Visibility.Visible;
+        WelcomePage.IsVisible = ConfirmPage.IsVisible = false;
+        ProgressPage.IsVisible = true;
         ProgressTitle.Text = _isUninstall ? "Entferne …" : _isUpdate ? "Aktualisiere …" : "Installiere …";
         PrimaryButton.IsEnabled = CancelButton.IsEnabled = false;
 
         var source = App.ExecutablePath;
         var options = _isUpdate ? null : new InstallOptions(AutostartToggle.IsChecked, DesktopToggle.IsChecked);
         var deleteData = DeleteDataToggle.IsChecked;
-        void Report(string step) => Dispatcher.BeginInvoke(() => _steps.Add(step));
+        void Report(string step) => Ui.Post(() => _steps.Add(step));
 
         string? error = null;
         try
@@ -162,15 +170,15 @@ public partial class SetupWindow : Window
     {
         _isFinished = true;
         _succeeded = error is null;
-        ProgressPage.Visibility = Visibility.Collapsed;
-        FinishPage.Visibility = Visibility.Visible;
-        CancelButton.Visibility = Visibility.Collapsed;
+        ProgressPage.IsVisible = false;
+        FinishPage.IsVisible = true;
+        CancelButton.IsVisible = false;
         PrimaryButton.IsEnabled = true;
         PrimaryButton.IsDefault = true;
-        PrimaryButton.SetResourceReference(StyleProperty, "PrimaryButton");
-        PrimaryLabel.Icon = (string)FindResource("IconCheck");
+        PrimaryButton.Theme = Ui.Theme("PrimaryButton");
+        PrimaryLabel.Icon = Ui.Icon("IconCheck");
         PrimaryLabel.Text = "Fertig";
-        StartTile.Visibility = _succeeded && !_isUninstall ? Visibility.Visible : Visibility.Collapsed;
+        StartTile.IsVisible = _succeeded && !_isUninstall;
 
         if (error is not null)
         {

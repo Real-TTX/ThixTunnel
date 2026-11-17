@@ -1,4 +1,4 @@
-using System.Windows;
+using Avalonia.LogicalTree;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Infrastructure;
 using ThixTunnel.Core.Models;
@@ -9,7 +9,7 @@ namespace ThixTunnel.Pages;
 internal static class PageActions
 {
     /// <summary>Returns true when the action succeeded. A BusinessException goes to its form field, or to the info bar.</summary>
-    public static bool Run(Action action, InfoBar messageBar, DependencyObject? form = null)
+    public static bool Run(Action action, InfoBar messageBar, ILogical? form = null)
     {
         if (form is not null)
         {
@@ -36,5 +36,5 @@ internal static class PageActions
         }
     }
 
-    public static int ParsePort(string text) => int.TryParse(text.Trim(), out var port) ? port : 0;
+    public static int ParsePort(string? text) => int.TryParse((text ?? "").Trim(), out var port) ? port : 0;
 }

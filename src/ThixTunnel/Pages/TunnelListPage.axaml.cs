@@ -1,8 +1,10 @@
 using System.ComponentModel;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.VisualTree;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Models;
@@ -36,7 +38,10 @@ public partial class TunnelListPage : UserControl, IDisposable
     public void Select(Guid routeId)
     {
         RouteList.SelectedItem = _rows.FirstOrDefault(row => row.Id == routeId);
-        RouteList.ScrollIntoView(RouteList.SelectedItem);
+        if (RouteList.SelectedItem is { } selected)
+        {
+            RouteList.ScrollIntoView(selected);
+        }
     }
 
     private void Reload(Guid? selectRouteId)
@@ -47,38 +52,35 @@ public partial class TunnelListPage : UserControl, IDisposable
         RouteList.SelectedItem = _rows.FirstOrDefault(row => row.Id == selectRouteId);
 
         EmptyText.Text = "Noch keine Verbindung. Verbindungen und SSH-Profile legst du in den Einstellungen an (Zahnrad unten rechts).";
-        EmptyText.Visibility = _rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyText.IsVisible = _rows.Count == 0;
     }
 
     private void OnDataChanged(object? sender, EventArgs e) => Reload(SelectedRow?.Id);
 
     private void OnStatusChanged(object? sender, TunnelStatus status) =>
-        Dispatcher.BeginInvoke(() => _rows.FirstOrDefault(candidate => candidate.Id == status.RouteId)?.Update(status));
+        Ui.Post(() => _rows.FirstOrDefault(candidate => candidate.Id == status.RouteId)?.Update(status));
 
-    private void OnRowDoubleClick(object sender, MouseButtonEventArgs e)
+    private void OnRowDoubleTapped(object? sender, TappedEventArgs e)
     {
-        var clickedRow = ItemsControl.ContainerFromElement(RouteList, (DependencyObject)e.OriginalSource) is ListBoxItem;
-        if (clickedRow && SelectedRow is { } row && e.OriginalSource is not Button)
+        var source = e.Source as Visual;
+        var onRow = source?.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null;
+        var onButton = source?.FindAncestorOfType<Button>(includeSelf: true) is not null;
+        if (onRow && !onButton && SelectedRow is { } row)
         {
             ToggleConnection(row.Id);
         }
     }
 
-    private void OnListKeyDown(object sender, KeyEventArgs e)
+    private void OnListKeyDown(object? sender, KeyEventArgs e)
     {
-        if (SelectedRow is not { } row)
-        {
-            return;
-        }
-
-        if (e.Key == Key.Enter)
+        if (e.Key == Key.Enter && SelectedRow is { } row)
         {
             ToggleConnection(row.Id);
             e.Handled = true;
         }
     }
 
-    private void OnRowActionClick(object sender, RoutedEventArgs e)
+    private void OnRowActionClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: Guid routeId })
         {
@@ -125,7 +127,7 @@ public partial class TunnelListPage : UserControl, IDisposable
 
         public TunnelStatus Status { get; private set; }
 
-        public Brush DotBrush => Resource(StatusBadge.BrushKeys(Status).Dot);
+        public IBrush DotBrush => Ui.Brush(StatusBadge.BrushKeys(Status).Dot);
 
         /// <summary>Second line: the endpoints - or, while something is going on, what is going on.</summary>
         public string Detail => Status.State switch
@@ -134,7 +136,7 @@ public partial class TunnelListPage : UserControl, IDisposable
             _ => _endpoints,
         };
 
-        public Brush DetailBrush => Resource(Status.State switch
+        public IBrush DetailBrush => Ui.Brush(Status.State switch
         {
             TunnelState.Failed => "DangerBrush",
             TunnelState.Connecting or TunnelState.WaitingForRetry => "WarningBrush",
@@ -154,9 +156,9 @@ public partial class TunnelListPage : UserControl, IDisposable
 
         public string ActionText => Status.IsActive ? "Trennen" : "Verbinden";
 
-        public string ActionIcon => (string)Application.Current.FindResource(Status.IsActive ? "IconDisconnect" : "IconConnect");
+        public string ActionIcon => Ui.Icon(Status.IsActive ? "IconDisconnect" : "IconConnect");
 
-        public Brush ActionBrush => Resource(Status.IsActive ? "TextMutedBrush" : "AccentHoverBrush");
+        public IBrush ActionBrush => Ui.Brush(Status.IsActive ? "TextMutedBrush" : "AccentHoverBrush");
 
         public void Update(TunnelStatus status)
         {
@@ -166,7 +168,5 @@ public partial class TunnelListPage : UserControl, IDisposable
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
             }
         }
-
-        private static Brush Resource(string key) => (Brush)Application.Current.FindResource(key);
     }
 }

@@ -87,6 +87,10 @@ public static class TunnelManager
         Log.Info($"Route {routeId} disconnected by the user");
     }
 
+    /// <summary>At start-up: ends ssh processes of these routes that a crashed ThixTunnel left behind (macOS/Linux, see ProcessJob).</summary>
+    public static void EndLeftoverProcesses() =>
+        ProcessJob.EndLeftovers(RouteService.List().Select(route => SshConfigWriter.FileName(route.Id)));
+
     /// <summary>Connects every route with "connect on start-up" (without prompts).</summary>
     public static void ConnectStartupRoutes()
     {

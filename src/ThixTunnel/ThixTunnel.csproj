@@ -1,39 +1,53 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    The desktop application: WPF window, tray icon (WinForms NotifyIcon) and the SSH_ASKPASS helper (same exe).
-    Published self-contained for win-x64; the Inno Setup script (installer/ThixTunnel.iss) packs the publish folder.
+    The desktop application for Windows and macOS (Avalonia): windows, tray / menu bar icon and the SSH_ASKPASS
+    helper (same program).
+    Windows: published self-contained single-file for win-x64; that ThixTunnel.exe is its own setup (InstallService).
+    macOS:   published self-contained for osx-arm64 / osx-x64 and packed into ThixTunnel.app (scripts/package-macos.sh).
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>ThixTunnel</AssemblyName>
     <RootNamespace>ThixTunnel</RootNamespace>
     <ApplicationIcon>Assets\thixtunnel.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyTitle>ThixTunnel</AssemblyTitle>
-    <!-- WPF needs Per-Monitor-V2 in the manifest; the hint is meant for pure WinForms apps. -->
-    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+    <AvaloniaVersion>11.3.22</AvaloniaVersion>
+    <!-- Bindings in data templates resolve by reflection (the rows are plain view models). -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- InstallService creates Windows shortcuts through the WScript.Shell COM object. -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
     <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <!-- The single-file program is its own setup (App.RunSetupIfRequested). -->
-    <DefineConstants>$(DefineConstants);SINGLE_FILE</DefineConstants>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
     <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
   </PropertyGroup>
 
-  <!-- WPF and WinForms share type names (Application, MessageBox, UserControl ...): no global WinForms/Drawing usings. -->
+  <!-- Windows: one file, which is also the setup (App.RunSetupIfRequested). -->
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win-'))">
+    <PublishSingleFile>true</PublishSingleFile>
+    <DefineConstants>$(DefineConstants);SINGLE_FILE</DefineConstants>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
+  <!-- macOS: the files go into ThixTunnel.app/Contents/MacOS (scripts/package-macos.sh). -->
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('osx-'))">
+    <UseAppHost>true</UseAppHost>
+  </PropertyGroup>
+
   <ItemGroup>
-    <Using Remove="System.Windows.Forms" />
-    <Using Remove="System.Drawing" />
     <Using Include="System.IO" />
     <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,8 +55,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\thixtunnel.ico" />
-    <Resource Include="Assets\logo-256.png" />
+    <AvaloniaResource Include="Assets\thixtunnel.ico" />
+    <AvaloniaResource Include="Assets\logo-256.png" />
+    <AvaloniaResource Include="Assets\Fonts\FluentSystemIcons-Regular.ttf" />
   </ItemGroup>
 
 </Project>

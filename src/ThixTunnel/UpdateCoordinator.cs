@@ -1,5 +1,5 @@
-using System.Windows;
-using System.Windows.Threading;
+using Avalonia;
+using Avalonia.Threading;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Infrastructure;
 
@@ -7,7 +7,7 @@ namespace ThixTunnel;
 
 /// <summary>
 /// When to look for updates and what to do with one: check shortly after start and every 6 hours (when enabled),
-/// install on its own with "full auto update", otherwise only point to it (side bar, tray).
+/// install on its own with "full auto update", otherwise only point to it (main window, tray).
 /// </summary>
 internal static class UpdateCoordinator
 {
@@ -27,13 +27,7 @@ internal static class UpdateCoordinator
         Timer.Start();
 
         // The first check waits a bit: network and tunnels come first after sign-in.
-        var firstCheck = new DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
-        firstCheck.Tick += async (_, _) =>
-        {
-            firstCheck.Stop();
-            await CheckInBackgroundAsync();
-        };
-        firstCheck.Start();
+        DispatcherTimer.RunOnce(() => _ = CheckInBackgroundAsync(), TimeSpan.FromSeconds(45));
     }
 
     public static async Task<UpdateCheckResult> CheckAsync()
@@ -43,12 +37,12 @@ internal static class UpdateCoordinator
         return result;
     }
 
-    /// <summary>Downloads and starts the setup, then ends ThixTunnel; the setup starts it again.</summary>
+    /// <summary>Downloads and starts the installation, then ends ThixTunnel; the update starts it again.</summary>
     public static async Task InstallAsync(UpdateManifest manifest, IProgress<double>? progress = null)
     {
         await UpdateService.DownloadAndStartInstallerAsync(manifest, progress);
         SessionResume.RememberActiveRoutes();
-        ((App)Application.Current).ExitApplication();
+        ((App)Application.Current!).ExitApplication();
     }
 
     private static async Task CheckInBackgroundAsync()

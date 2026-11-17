@@ -1,6 +1,9 @@
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.VisualTree;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Models;
@@ -51,7 +54,7 @@ public partial class RouteListPage : UserControl, IDisposable
     private void OnDataChanged(object? sender, EventArgs e) => Reload(SelectedRow?.Id);
 
     // The status filter and the status dots follow the tunnels.
-    private void OnStatusChanged(object? sender, TunnelStatus status) => Dispatcher.BeginInvoke(() => Reload(SelectedRow?.Id));
+    private void OnStatusChanged(object? sender, TunnelStatus status) => Ui.Post(() => Reload(SelectedRow?.Id));
 
     private void Reload(Guid? selectRouteId)
     {
@@ -63,7 +66,7 @@ public partial class RouteListPage : UserControl, IDisposable
             : ProfileService.List().Count == 0
                 ? "Noch keine Verbindung. Lege zuerst im Reiter „SSH-Profile“ deine Server an, dann hier die erste Verbindung."
                 : "Noch keine Verbindung. Mit „Neue Verbindung“ legst du die erste an.";
-        EmptyText.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyText.IsVisible = rows.Count == 0;
         RefreshActions();
     }
 
@@ -75,19 +78,19 @@ public partial class RouteListPage : UserControl, IDisposable
         DeleteButton.IsEnabled = hasSelection && !AccessPolicy.IsConfigurationLocked;
     }
 
-    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshActions();
+    private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e) => RefreshActions();
 
-    private void OnRowDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private void OnRowDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (ItemsControl.ContainerFromElement(RouteList, (DependencyObject)e.OriginalSource) is ListBoxItem)
+        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null)
         {
             OnEditClick(sender, e);
         }
     }
 
-    private void OnNewClick(object sender, RoutedEventArgs e) => AppWindows.ShowRouteEditor(null);
+    private void OnNewClick(object? sender, RoutedEventArgs e) => AppWindows.ShowRouteEditor(null);
 
-    private void OnEditClick(object sender, RoutedEventArgs e)
+    private void OnEditClick(object? sender, RoutedEventArgs e)
     {
         if (SelectedRow is { } row)
         {
@@ -95,21 +98,21 @@ public partial class RouteListPage : UserControl, IDisposable
         }
     }
 
-    private void OnCopyCommandClick(object sender, RoutedEventArgs e)
+    private async void OnCopyCommandClick(object? sender, RoutedEventArgs e)
     {
-        if (SelectedRow is not { } row || RouteService.Get(row.Id) is not { } route)
+        if (SelectedRow is not { } row || RouteService.Get(row.Id) is not { } route || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
         {
             return;
         }
 
-        Clipboard.SetText(RouteService.DescribeCommand(route));
+        await clipboard.SetTextAsync(RouteService.DescribeCommand(route));
         MessageBar.Show("ssh-Befehl in die Zwischenablage kopiert.", InfoSeverity.Success);
     }
 
-    private void OnDeleteClick(object sender, RoutedEventArgs e)
+    private async void OnDeleteClick(object? sender, RoutedEventArgs e)
     {
         if (SelectedRow is not { } row ||
-            !ConfirmDialog.Ask(Window.GetWindow(this), "Verbindung löschen", $"„{row.Name}“ wird getrennt und gelöscht. Die SSH-Profile bleiben erhalten.", "Löschen", isDestructive: true))
+            !await ConfirmDialog.AskAsync(Ui.WindowOf(this), "Verbindung löschen", $"„{row.Name}“ wird getrennt und gelöscht. Die SSH-Profile bleiben erhalten.", "Löschen", isDestructive: true))
         {
             return;
         }
@@ -139,7 +142,7 @@ public partial class RouteListPage : UserControl, IDisposable
 
         public string AutomationText { get; } = route.ConnectOnStartup ? "Auto-Verbindung" : "";
 
-        public Brush DotBrush => (Brush)Application.Current.FindResource(StatusBadge.BrushKeys(_status).Dot);
+        public IBrush DotBrush => Ui.Brush(StatusBadge.BrushKeys(_status).Dot);
 
         public string Details => $"{Name}\n{Endpoints}\n{Chain}\n{StatusBadge.Label(_status)}" + (_status.Message.Length > 0 ? $"\n{_status.Message}" : "");
     }

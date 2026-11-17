@@ -1,0 +1,383 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    ThixTunnel dark theme (Windows and macOS). Every control of the app takes its look from here: colours, spacing,
+    buttons, inputs, tabs, lists. Pages do not set colours themselves. Named looks are ControlThemes:
+    Theme="{StaticResource PrimaryButton}" (not Style=, not Classes=). The Fluent theme below them provides the
+    templates of inputs, combo boxes, toggle switches and scroll bars; the brushes at the end give them our colours.
+  -->
+
+  <!-- ===== Colours ===== -->
+  <Color x:Key="WindowColor">#0F1826</Color>
+  <Color x:Key="SidebarColor">#111C2D</Color>
+  <Color x:Key="TileColor">#152238</Color>
+  <Color x:Key="TileHoverColor">#1A2A44</Color>
+  <Color x:Key="InputColor">#0F1A2B</Color>
+  <Color x:Key="BorderColor">#2A3B55</Color>
+  <Color x:Key="AccentColor">#3D8EF7</Color>
+  <Color x:Key="AccentHoverColor">#5AA1FA</Color>
+  <Color x:Key="SelectionColor">#1E3456</Color>
+  <Color x:Key="TextColor">#E8EEF7</Color>
+  <Color x:Key="TextMutedColor">#9AACC4</Color>
+  <Color x:Key="SuccessColor">#4ADE80</Color>
+  <Color x:Key="WarningColor">#FBBF24</Color>
+  <Color x:Key="DangerColor">#F87171</Color>
+
+  <SolidColorBrush x:Key="WindowBrush" Color="{StaticResource WindowColor}" />
+  <SolidColorBrush x:Key="SidebarBrush" Color="{StaticResource SidebarColor}" />
+  <SolidColorBrush x:Key="TileBrush" Color="{StaticResource TileColor}" />
+  <SolidColorBrush x:Key="TileHoverBrush" Color="{StaticResource TileHoverColor}" />
+  <SolidColorBrush x:Key="InputBrush" Color="{StaticResource InputColor}" />
+  <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />
+  <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+  <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
+  <SolidColorBrush x:Key="SelectionBrush" Color="{StaticResource SelectionColor}" />
+  <SolidColorBrush x:Key="TextBrush" Color="{StaticResource TextColor}" />
+  <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
+  <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+  <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+  <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
+  <SolidColorBrush x:Key="SuccessSoftBrush" Color="#1A3A2A" />
+  <SolidColorBrush x:Key="WarningSoftBrush" Color="#3A3020" />
+  <SolidColorBrush x:Key="DangerSoftBrush" Color="#3A2026" />
+  <SolidColorBrush x:Key="NeutralSoftBrush" Color="#223049" />
+  <SolidColorBrush x:Key="DangerBorderBrush" Color="#6B3440" />
+
+  <!-- ===== Type and spacing ===== -->
+  <!-- The first installed family wins: Segoe on Windows, the system font (San Francisco) on macOS. -->
+  <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI, .AppleSystemUIFont, Helvetica Neue</FontFamily>
+  <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI, .AppleSystemUIFont, Helvetica Neue</FontFamily>
+  <!-- Fluent UI System Icons (MIT, Assets/Fonts): the same glyphs on every system. -->
+  <FontFamily x:Key="IconFont">avares://ThixTunnel/Assets/Fonts#FluentSystemIcons-Regular</FontFamily>
+  <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, Monaco</FontFamily>
+  <x:Double x:Key="FontSizeNormal">14</x:Double>
+  <Thickness x:Key="TileMargin">0,0,0,16</Thickness>
+  <Thickness x:Key="TilePadding">20,16</Thickness>
+  <CornerRadius x:Key="Radius">8</CornerRadius>
+
+  <!-- ===== Icon glyphs (Fluent UI System Icons, *_20_regular) ===== -->
+  <x:String x:Key="IconTunnel">&#xF4E4;</x:String>
+  <x:String x:Key="IconProfile">&#xF769;</x:String>
+  <x:String x:Key="IconSettings">&#xF6A9;</x:String>
+  <x:String x:Key="IconAdd">&#xF109;</x:String>
+  <x:String x:Key="IconEdit">&#xF3DD;</x:String>
+  <x:String x:Key="IconDelete">&#xF34C;</x:String>
+  <x:String x:Key="IconSearch">&#xF68F;</x:String>
+  <x:String x:Key="IconFilter">&#xF406;</x:String>
+  <x:String x:Key="IconSort">&#xF18A;</x:String>
+  <x:String x:Key="IconSave">&#xF67F;</x:String>
+  <x:String x:Key="IconBack">&#xF15B;</x:String>
+  <x:String x:Key="IconConnect">&#xF605;</x:String>
+  <x:String x:Key="IconDisconnect">&#xF72A;</x:String>
+  <x:String x:Key="IconArrowRight">&#xF181;</x:String>
+  <x:String x:Key="IconUp">&#xF2B6;</x:String>
+  <x:String x:Key="IconDown">&#xF2A3;</x:String>
+  <x:String x:Key="IconRemove">&#xF369;</x:String>
+  <x:String x:Key="IconInfo">&#xF4A3;</x:String>
+  <x:String x:Key="IconWarning">&#xF869;</x:String>
+  <x:String x:Key="IconCheck">&#xF294;</x:String>
+  <x:String x:Key="IconCopy">&#xF32B;</x:String>
+  <x:String x:Key="IconFolder">&#xF418;</x:String>
+  <x:String x:Key="IconRefresh">&#xF190;</x:String>
+  <x:String x:Key="IconDownload">&#xF150;</x:String>
+  <x:String x:Key="IconKey">&#xF4B6;</x:String>
+  <x:String x:Key="IconLock">&#xE78F;</x:String>
+  <x:String x:Key="IconExport">&#xE0C7;</x:String>
+  <x:String x:Key="IconImport">&#xF159;</x:String>
+
+  <!--
+    ===== Text =====
+    No implicit TextBlock theme: windows set font and foreground once (ThemedWindow), text inherits them.
+  -->
+  <ControlTheme x:Key="IconText" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </ControlTheme>
+  <ControlTheme x:Key="MutedText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </ControlTheme>
+  <ControlTheme x:Key="PageTitle" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
+    <Setter Property="FontSize" Value="24" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </ControlTheme>
+  <ControlTheme x:Key="SectionTitle" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    <Setter Property="FontSize" Value="17" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="0,0,0,12" />
+  </ControlTheme>
+  <ControlTheme x:Key="FieldLabel" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Margin" Value="0,0,0,6" />
+  </ControlTheme>
+  <ControlTheme x:Key="MonoText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </ControlTheme>
+  <ControlTheme x:Key="TableHeaderText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </ControlTheme>
+
+  <!-- ===== Tile (card): always spaced from its neighbours ===== -->
+  <ControlTheme x:Key="Tile" TargetType="Border">
+    <Setter Property="Background" Value="{StaticResource TileBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Radius}" />
+    <Setter Property="Padding" Value="{StaticResource TilePadding}" />
+    <Setter Property="Margin" Value="{StaticResource TileMargin}" />
+  </ControlTheme>
+
+  <!-- ===== Buttons ===== -->
+  <ControlTheme x:Key="{x:Type Button}" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Padding" Value="16,7" />
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover /template/ Border#Frame">
+      <Setter Property="Background" Value="{StaticResource TileHoverBrush}" />
+    </Style>
+    <Style Selector="^:focus-visible /template/ Border#Frame">
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+    </Style>
+    <Style Selector="^:disabled /template/ Border#Frame">
+      <Setter Property="Opacity" Value="0.45" />
+    </Style>
+  </ControlTheme>
+
+  <ControlTheme x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+    <Setter Property="Foreground" Value="White" />
+    <Style Selector="^:pointerover /template/ Border#Frame">
+      <Setter Property="Background" Value="{StaticResource AccentHoverBrush}" />
+    </Style>
+    <Style Selector="^:focus-visible /template/ Border#Frame">
+      <Setter Property="BorderBrush" Value="White" />
+    </Style>
+  </ControlTheme>
+
+  <ControlTheme x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource DangerBorderBrush}" />
+  </ControlTheme>
+
+  <ControlTheme x:Key="LinkButton" TargetType="Button">
+    <Setter Property="Foreground" Value="{StaticResource AccentHoverBrush}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+  </ControlTheme>
+
+  <!-- A button with only an icon glyph as content (Content = one of the Icon* strings). -->
+  <DataTemplate x:Key="IconGlyphTemplate" x:DataType="x:String">
+    <TextBlock Text="{Binding}" FontFamily="{StaticResource IconFont}" FontSize="16" />
+  </DataTemplate>
+  <ControlTheme x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Padding" Value="8,6" />
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="MinWidth" Value="32" />
+    <Setter Property="ContentTemplate" Value="{StaticResource IconGlyphTemplate}" />
+  </ControlTheme>
+  <!-- Icon-only variants for narrow windows (the text goes into the tool tip). -->
+  <ControlTheme x:Key="IconActionButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="MinWidth" Value="38" />
+    <Setter Property="ContentTemplate" Value="{StaticResource IconGlyphTemplate}" />
+  </ControlTheme>
+  <ControlTheme x:Key="PrimaryIconButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="MinWidth" Value="38" />
+    <Setter Property="ContentTemplate" Value="{StaticResource IconGlyphTemplate}" />
+  </ControlTheme>
+  <ControlTheme x:Key="DangerIconButton" TargetType="Button" BasedOn="{StaticResource DangerButton}">
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="MinWidth" Value="38" />
+    <Setter Property="ContentTemplate" Value="{StaticResource IconGlyphTemplate}" />
+  </ControlTheme>
+  <!-- Borderless icon button (header and footer of the connection list, connect button in a row). -->
+  <ControlTheme x:Key="FlatIconButton" TargetType="Button" BasedOn="{StaticResource IconActionButton}">
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+  </ControlTheme>
+
+  <!-- ===== Radio buttons in forms (Fluent look, our spacing; the content wraps) ===== -->
+  <ControlTheme x:Key="OptionRadio" TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
+    <Setter Property="Margin" Value="0,0,0,8" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="VerticalContentAlignment" Value="Top" />
+  </ControlTheme>
+
+  <!-- ===== Tabs: the tab headers wrap in a narrow window but keep their order ===== -->
+  <ControlTheme x:Key="{x:Type TabControl}" TargetType="TabControl">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="0,16,0,0" />
+    <Setter Property="ItemsPanel">
+      <ItemsPanelTemplate>
+        <WrapPanel />
+      </ItemsPanelTemplate>
+    </Setter>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <DockPanel>
+          <Border DockPanel.Dock="Top" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
+          </Border>
+          <ContentPresenter Name="PART_SelectedContentHost" Margin="{TemplateBinding Padding}"
+                            Content="{TemplateBinding SelectedContent}" ContentTemplate="{TemplateBinding SelectedContentTemplate}" />
+        </DockPanel>
+      </ControlTemplate>
+    </Setter>
+  </ControlTheme>
+  <ControlTheme x:Key="{x:Type TabItem}" TargetType="TabItem">
+    <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid Margin="0,0,24,0" Background="Transparent">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
+                            Foreground="{TemplateBinding Foreground}" Margin="2,8,2,10" />
+          <Border Name="Line" Height="3" CornerRadius="1.5" VerticalAlignment="Bottom" Background="Transparent" />
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    </Style>
+    <Style Selector="^:selected">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    </Style>
+    <Style Selector="^:selected /template/ Border#Line">
+      <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+    </Style>
+  </ControlTheme>
+
+  <!-- ===== Lists ===== -->
+  <ControlTheme x:Key="TableList" TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+  </ControlTheme>
+  <!-- An entry of a contact-list style list (connections, profiles): no grid lines, rounded highlight. -->
+  <ControlTheme x:Key="ContactRow" TargetType="ListBoxItem">
+    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Margin" Value="0,0,0,2" />
+    <Setter Property="Padding" Value="10,7,6,7" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="Row" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+          <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <Style Selector="^:pointerover /template/ Border#Row">
+      <Setter Property="Background" Value="{StaticResource TileHoverBrush}" />
+    </Style>
+    <Style Selector="^:selected /template/ Border#Row">
+      <Setter Property="Background" Value="{StaticResource SelectionBrush}" />
+    </Style>
+  </ControlTheme>
+
+  <!-- ===== Fluent templates in our colours (inputs, combo boxes, switches, menus, tool tips) ===== -->
+  <SolidColorBrush x:Key="TextControlForeground" Color="{StaticResource TextColor}" />
+  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="{StaticResource TextColor}" />
+  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="{StaticResource TextColor}" />
+  <SolidColorBrush x:Key="TextControlBackground" Color="{StaticResource InputColor}" />
+  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="{StaticResource InputColor}" />
+  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="{StaticResource InputColor}" />
+  <SolidColorBrush x:Key="TextControlBorderBrush" Color="{StaticResource BorderColor}" />
+  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#3A4D6B" />
+  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="{StaticResource AccentColor}" />
+  <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="{StaticResource TextMutedColor}" />
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="{StaticResource TextMutedColor}" />
+  <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="{StaticResource TextMutedColor}" />
+  <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="{StaticResource AccentColor}" />
+  <Thickness x:Key="TextControlBorderThemeThickness">1</Thickness>
+  <Thickness x:Key="TextControlBorderThemeThicknessFocused">1</Thickness>
+  <Thickness x:Key="TextControlThemePadding">10,8,10,7</Thickness>
+
+  <SolidColorBrush x:Key="ComboBoxBackground" Color="{StaticResource InputColor}" />
+  <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="{StaticResource InputColor}" />
+  <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="{StaticResource InputColor}" />
+  <SolidColorBrush x:Key="ComboBoxBackgroundFocused" Color="{StaticResource InputColor}" />
+  <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="{StaticResource BorderColor}" />
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="{StaticResource AccentColor}" />
+  <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="{StaticResource AccentColor}" />
+  <SolidColorBrush x:Key="ComboBoxForeground" Color="{StaticResource TextColor}" />
+  <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="{StaticResource TileColor}" />
+  <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="{StaticResource BorderColor}" />
+  <SolidColorBrush x:Key="ComboBoxDropDownGlyphForeground" Color="{StaticResource TextMutedColor}" />
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="{StaticResource SelectionColor}" />
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="{StaticResource SelectionColor}" />
+  <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="{StaticResource SelectionColor}" />
+  <SolidColorBrush x:Key="ComboBoxItemForegroundSelected" Color="{StaticResource AccentHoverColor}" />
+
+  <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="{StaticResource BorderColor}" />
+  <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#34486A" />
+  <SolidColorBrush x:Key="ToggleSwitchStrokeOff" Color="#3A4D6B" />
+  <SolidColorBrush x:Key="ToggleSwitchKnobFillOff" Color="#C9D4E5" />
+  <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{StaticResource AccentColor}" />
+  <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{StaticResource AccentHoverColor}" />
+  <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="White" />
+
+  <SolidColorBrush x:Key="ToolTipBackground" Color="{StaticResource TileColor}" />
+  <SolidColorBrush x:Key="ToolTipForeground" Color="{StaticResource TextColor}" />
+  <SolidColorBrush x:Key="ToolTipBorderBrush" Color="{StaticResource BorderColor}" />
+
+  <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="{StaticResource TileColor}" />
+  <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="{StaticResource BorderColor}" />
+  <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPointerOver" Color="{StaticResource SelectionColor}" />
+
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseStroke" Color="{StaticResource BorderColor}" />
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke" Color="{StaticResource AccentColor}" />
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="{StaticResource AccentColor}" />
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPointerOver" Color="{StaticResource AccentHoverColor}" />
+  <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePointerOver" Color="{StaticResource AccentHoverColor}" />
+
+</ResourceDictionary>

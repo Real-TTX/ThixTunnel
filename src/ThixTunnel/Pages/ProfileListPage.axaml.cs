@@ -1,5 +1,8 @@
-using System.Windows;
-using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Models;
@@ -26,6 +29,12 @@ public partial class ProfileListPage : UserControl, IDisposable
         new(ProfileService.SortByUsage, "Verwendung"),
     ];
 
+    /// <summary>For the XAML loader and previewer.</summary>
+    public ProfileListPage()
+        : this(null)
+    {
+    }
+
     public ProfileListPage(Guid? selectProfileId)
     {
         InitializeComponent();
@@ -40,10 +49,10 @@ public partial class ProfileListPage : UserControl, IDisposable
     /// <summary>Inside a tab of the settings window: no own title, no own margin.</summary>
     public bool IsEmbedded
     {
-        get => Header.Visibility != Visibility.Visible;
+        get => !Header.IsVisible;
         set
         {
-            Header.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
+            Header.IsVisible = !value;
             Root.Margin = value ? new Thickness(0) : new Thickness(20, 16, 20, 16);
         }
     }
@@ -66,7 +75,7 @@ public partial class ProfileListPage : UserControl, IDisposable
         EmptyText.Text = ProfileService.List().Count == 0
             ? "Noch kein SSH-Profil. Ein Profil beschreibt die Anmeldung an einem Server (Adresse, Port, Benutzer, Schlüssel)."
             : "Kein Profil passt zur Suche oder zum Filter.";
-        EmptyText.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyText.IsVisible = rows.Count == 0;
         RefreshActions();
     }
 
@@ -77,13 +86,19 @@ public partial class ProfileListPage : UserControl, IDisposable
         DeleteButton.IsEnabled = selected && !AccessPolicy.IsConfigurationLocked;
     }
 
-    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshActions();
+    private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e) => RefreshActions();
 
-    private void OnRowDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => OnEditClick(sender, e);
+    private void OnRowDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not null)
+        {
+            OnEditClick(sender, e);
+        }
+    }
 
-    private void OnNewClick(object sender, RoutedEventArgs e) => AppWindows.ShowProfileEditor(null);
+    private void OnNewClick(object? sender, RoutedEventArgs e) => AppWindows.ShowProfileEditor(null);
 
-    private void OnEditClick(object sender, RoutedEventArgs e)
+    private void OnEditClick(object? sender, RoutedEventArgs e)
     {
         if (ProfileList.SelectedItem is ProfileRow row)
         {
@@ -91,10 +106,10 @@ public partial class ProfileListPage : UserControl, IDisposable
         }
     }
 
-    private void OnDeleteClick(object sender, RoutedEventArgs e)
+    private async void OnDeleteClick(object? sender, RoutedEventArgs e)
     {
         if (ProfileList.SelectedItem is not ProfileRow row ||
-            !ConfirmDialog.Ask(Window.GetWindow(this), "SSH-Profil löschen", $"„{row.Name}“ wird gelöscht.", "Löschen", isDestructive: true))
+            !await ConfirmDialog.AskAsync(Ui.WindowOf(this), "SSH-Profil löschen", $"„{row.Name}“ wird gelöscht.", "Löschen", isDestructive: true))
         {
             return;
         }
@@ -129,8 +144,7 @@ public partial class ProfileListPage : UserControl, IDisposable
 
         public string Authentication { get; } = AuthenticationLabel(profile.AuthenticationMethod);
 
-        public string AuthenticationIcon { get; } = (string)Application.Current.FindResource(
-            profile.AuthenticationMethod == SshAuthenticationMethod.Password ? "IconLock" : "IconKey");
+        public string AuthenticationIcon { get; } = Ui.Icon(profile.AuthenticationMethod == SshAuthenticationMethod.Password ? "IconLock" : "IconKey");
 
         public string Usage { get; } = usage switch
         {

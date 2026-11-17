@@ -1,46 +1,45 @@
-using System.Windows;
-using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.LogicalTree;
 
 namespace ThixTunnel.Controls;
 
 /// <summary>
-/// One input of a form: label above, the input, an optional hint and an error below.
+/// One input of a form: label above, the input, an optional hint and an error below (look: Themes/Controls.axaml).
 /// <see cref="Field"/> names the property the business layer reports errors for (BusinessException.Field).
 /// </summary>
 public sealed class FormField : HeaderedContentControl
 {
-    public static readonly DependencyProperty HintProperty = DependencyProperty.Register(
-        nameof(Hint), typeof(string), typeof(FormField), new PropertyMetadata(""));
+    public static readonly StyledProperty<string> HintProperty = AvaloniaProperty.Register<FormField, string>(nameof(Hint), "");
 
-    public static readonly DependencyProperty ErrorProperty = DependencyProperty.Register(
-        nameof(Error), typeof(string), typeof(FormField), new PropertyMetadata(""));
+    public static readonly StyledProperty<string> ErrorProperty = AvaloniaProperty.Register<FormField, string>(nameof(Error), "");
 
-    public static readonly DependencyProperty FieldProperty = DependencyProperty.Register(
-        nameof(Field), typeof(string), typeof(FormField), new PropertyMetadata(""));
+    public static readonly StyledProperty<string> FieldProperty = AvaloniaProperty.Register<FormField, string>(nameof(Field), "");
 
     public string Hint
     {
-        get => (string)GetValue(HintProperty);
+        get => GetValue(HintProperty);
         set => SetValue(HintProperty, value);
     }
 
     public string Error
     {
-        get => (string)GetValue(ErrorProperty);
+        get => GetValue(ErrorProperty);
         set => SetValue(ErrorProperty, value);
     }
 
     public string Field
     {
-        get => (string)GetValue(FieldProperty);
+        get => GetValue(FieldProperty);
         set => SetValue(FieldProperty, value);
     }
 
     /// <summary>Shows the message at the field named <paramref name="field"/> and clears all others; returns false when no field matches.</summary>
-    public static bool ShowError(DependencyObject root, string? field, string message)
+    public static bool ShowError(ILogical root, string? field, string message)
     {
         var found = false;
-        foreach (var formField in FindAll(root))
+        foreach (var formField in root.GetLogicalDescendants().OfType<FormField>())
         {
             var matches = !string.IsNullOrEmpty(field) && formField.Field == field;
             formField.Error = matches ? message : "";
@@ -50,27 +49,11 @@ public sealed class FormField : HeaderedContentControl
         return found;
     }
 
-    public static void ClearErrors(DependencyObject root)
+    public static void ClearErrors(ILogical root)
     {
-        foreach (var formField in FindAll(root))
+        foreach (var formField in root.GetLogicalDescendants().OfType<FormField>())
         {
             formField.Error = "";
-        }
-    }
-
-    private static IEnumerable<FormField> FindAll(DependencyObject root)
-    {
-        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
-        {
-            if (child is FormField field)
-            {
-                yield return field;
-            }
-
-            foreach (var nested in FindAll(child))
-            {
-                yield return nested;
-            }
         }
     }
 }

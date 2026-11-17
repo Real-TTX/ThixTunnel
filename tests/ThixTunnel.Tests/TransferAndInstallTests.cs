@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Infrastructure;
@@ -14,8 +15,12 @@ public sealed class TransferAndInstallTests : IDisposable
 
     public void Dispose()
     {
-        InstallService.UseLocationsForTests(null);
-        Registry.CurrentUser.DeleteSubKeyTree(@"Software\ThixTunnelTests", throwOnMissingSubKey: false);
+        if (OperatingSystem.IsWindows())
+        {
+            InstallService.UseLocationsForTests(null);
+            Registry.CurrentUser.DeleteSubKeyTree(@"Software\ThixTunnelTests", throwOnMissingSubKey: false);
+        }
+
         _data.Dispose();
     }
 
@@ -130,7 +135,8 @@ public sealed class TransferAndInstallTests : IDisposable
         Assert.Throws<BusinessException>(() => TransferService.Import(file, replaceExisting: true));
     }
 
-    [Fact]
+    [WindowsFact]
+    [SupportedOSPlatform("windows")]
     public void SetupInstallsUpdatesAndUninstallsWithoutTraces()
     {
         var programFolder = Path.Combine(_data.Directory, "Programs", "ThixTunnel");

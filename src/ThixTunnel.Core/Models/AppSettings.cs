@@ -21,7 +21,7 @@ public sealed class AppSettings
     /// <summary>Install found updates without asking (full auto update).</summary>
     public bool InstallUpdatesAutomatically { get; set; }
 
-    /// <summary>Optional path of ssh.exe; empty = Windows OpenSSH.</summary>
+    /// <summary>Optional path of ssh; empty = the system OpenSSH (Windows OpenSSH, /usr/bin/ssh).</summary>
     public string SshExecutablePath { get; set; } = "";
 
     public AppSettings Clone() => (AppSettings)MemberwiseClone();

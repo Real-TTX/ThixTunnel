@@ -1,13 +1,15 @@
 name: build
 
-# Builds, tests and packages ThixTunnel for every branch.
+# Builds, tests and packages ThixTunnel for Windows and macOS for every branch.
 #   main  -> release : <major>.<minor>.<run number>-<date>   e.g. 0.1.42-20261104
 #   dev   -> nightly : nightly-<run number>-<date>          e.g. nightly-43-20261104
 #   other -> local   : local-<date>                          (pull requests, feature branches)
 # The run number grows with every build of this workflow and is the build number the update check compares.
 #
 # Packages:
-#   every build      : workflow artifact "ThixTunnel-<version>" (setup + update manifest)
+#   Windows : ThixTunnelSetup.exe (the program is its own setup)
+#   macOS   : ThixTunnel-macOS-<arm64|x64>.dmg (first installation) and .zip (update of installed versions)
+#   every build      : workflow artifact "ThixTunnel-<version>" (all packages + update manifest)
 #   main (push)      : rolling release "release-channel" (OTA feed of release builds) + versioned release "v<version>"
 #   dev  (push)      : rolling pre-release "nightly-channel" (OTA feed of nightly builds)
 
@@ -27,16 +29,18 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  build:
-    runs-on: windows-latest
-
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.ver.outputs.channel }}
+      date: ${{ steps.ver.outputs.date }}
+      build: ${{ steps.ver.outputs.build }}
+      version: ${{ steps.ver.outputs.version }}
+      props: ${{ steps.ver.outputs.props }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
+      # One version for every platform of this run (the jobs may run across midnight).
       - name: Determine version metadata
         id: ver
         shell: bash
@@ -47,41 +51,46 @@ jobs:
             *)    channel=local ;;
           esac
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then channel=local; fi
+          date=$(date -u +%Y%m%d)
+          build=${GITHUB_RUN_NUMBER}
+          major=$(sed -n 's:.*<ThixTunnelMajor>\(.*\)</ThixTunnelMajor>.*:\1:p' Directory.Build.props)
+          minor=$(sed -n 's:.*<ThixTunnelMinor>\(.*\)</ThixTunnelMinor>.*:\1:p' Directory.Build.props)
+          case "$channel" in
+            release) version="${major}.${minor}.${build}-${date}" ;;
+            nightly) version="nightly-${build}-${date}" ;;
+            *)       version="local-${date}" ;;
+          esac
           {
             echo "channel=$channel"
-            echo "date=$(date -u +%Y%m%d)"
-            echo "build=${GITHUB_RUN_NUMBER}"
+            echo "date=$date"
+            echo "build=$build"
+            echo "version=$version"
+            echo "props=-p:Channel=$channel -p:BuildNumber=$build -p:BuildDate=$date"
           } >> "$GITHUB_OUTPUT"
+          printf '### ThixTunnel\n\n- version: `%s`\n- channel: `%s`\n' "$version" "$channel" >> "$GITHUB_STEP_SUMMARY"
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
         run: dotnet restore ThixTunnel.slnx
 
       - name: Build
-        run: >
-          dotnet build ThixTunnel.slnx -c Release --no-restore
-          -p:Channel=${{ steps.ver.outputs.channel }}
-          -p:BuildNumber=${{ steps.ver.outputs.build }}
-          -p:BuildDate=${{ steps.ver.outputs.date }}
+        run: dotnet build ThixTunnel.slnx -c Release --no-restore ${{ needs.version.outputs.props }}
 
       # The end-to-end tests need Docker SSH servers (scripts/e2e-docker.ps1) and are skipped here.
       - name: Test
         run: dotnet test ThixTunnel.slnx -c Release --no-build --filter "Category!=E2E" --logger GitHubActions
 
-      - name: Resolve version strings
-        id: appver
-        shell: bash
-        run: |
-          props="-p:Channel=${{ steps.ver.outputs.channel }} -p:BuildNumber=${{ steps.ver.outputs.build }} -p:BuildDate=${{ steps.ver.outputs.date }}"
-          version=$(dotnet msbuild src/ThixTunnel/ThixTunnel.csproj -getProperty:InformationalVersion $props | tr -d '[:space:]')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          printf '### ThixTunnel\n\n- version: `%s`\n- channel: `%s`\n' "$version" "${{ steps.ver.outputs.channel }}" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Publish (win-x64, self-contained)
-        run: >
-          dotnet publish src/ThixTunnel/ThixTunnel.csproj -c Release -r win-x64 -o publish
-          -p:Channel=${{ steps.ver.outputs.channel }}
-          -p:BuildNumber=${{ steps.ver.outputs.build }}
-          -p:BuildDate=${{ steps.ver.outputs.date }}
+      - name: Publish (win-x64, self-contained single file)
+        run: dotnet publish src/ThixTunnel/ThixTunnel.csproj -c Release -r win-x64 -o publish ${{ needs.version.outputs.props }}
 
       # ThixTunnel.exe is its own setup (InstallService, like the Matgate agent): started from the download it installs
       # itself per user, "--update" is the silent update, "--uninstall" the uninstaller. No installer tool needed.
@@ -92,58 +101,123 @@ jobs:
           Copy-Item publish\ThixTunnel.exe artifacts\ThixTunnelSetup.exe
           Get-Item artifacts\ThixTunnelSetup.exe | Select-Object Name, Length
 
-      # The manifest the installed application reads for its update check (UpdateService).
-      - name: Write update manifest
-        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: artifacts/
+          retention-days: 2
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ThixTunnel.slnx
+
+      - name: Build
+        run: dotnet build ThixTunnel.slnx -c Release --no-restore ${{ needs.version.outputs.props }}
+
+      # The same unit and business layer tests as on Windows, here against macOS paths, LaunchAgent and /usr/bin/ssh.
+      - name: Test
+        run: dotnet test ThixTunnel.slnx -c Release --no-build --filter "Category!=E2E" --logger GitHubActions
+
+      - name: Publish and package (arm64 and x64)
+        shell: bash
         run: |
-          $setup = "artifacts\ThixTunnelSetup.exe"
-          $manifest = [ordered]@{
-            version     = "${{ steps.appver.outputs.version }}"
-            channel     = "${{ steps.ver.outputs.channel }}"
-            buildNumber = [int]"${{ steps.ver.outputs.build }}"
-            setup       = "ThixTunnelSetup.exe"
-            sha256      = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant()
-            publishedAt = (Get-Date).ToUniversalTime().ToString("o")
-          }
-          $manifest | ConvertTo-Json | Set-Content -Encoding utf8NoBOM artifacts\thixtunnel-update.json
-          Get-Content artifacts\thixtunnel-update.json
+          set -euo pipefail
+          chmod +x scripts/package-macos.sh
+          for rid in osx-arm64 osx-x64; do
+            dotnet publish src/ThixTunnel/ThixTunnel.csproj -c Release -r "$rid" -o "publish/$rid" ${{ needs.version.outputs.props }}
+            scripts/package-macos.sh "publish/$rid" "$rid" "${{ needs.version.outputs.version }}" "${{ needs.version.outputs.build }}" artifacts
+          done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ThixTunnel-${{ steps.appver.outputs.version }}
+          name: macos
+          path: artifacts/
+          retention-days: 2
+
+  publish:
+    needs: [version, windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      # The manifest the installed application reads for its update check (UpdateService): "setup"/"sha256" for every
+      # Windows version since 0.1, "packages" for each platform.
+      - name: Write update manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts
+          sha() { sha256sum "$1" | cut -d' ' -f1; }
+          cat > thixtunnel-update.json <<JSON
+          {
+            "version": "${{ needs.version.outputs.version }}",
+            "channel": "${{ needs.version.outputs.channel }}",
+            "buildNumber": ${{ needs.version.outputs.build }},
+            "setup": "ThixTunnelSetup.exe",
+            "sha256": "$(sha ThixTunnelSetup.exe)",
+            "publishedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "packages": {
+              "win-x64": { "file": "ThixTunnelSetup.exe", "sha256": "$(sha ThixTunnelSetup.exe)" },
+              "osx-arm64": { "file": "ThixTunnel-macOS-arm64.zip", "sha256": "$(sha ThixTunnel-macOS-arm64.zip)" },
+              "osx-x64": { "file": "ThixTunnel-macOS-x64.zip", "sha256": "$(sha ThixTunnel-macOS-x64.zip)" }
+            }
+          }
+          JSON
+          cat thixtunnel-update.json
+          ls -l
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ThixTunnel-${{ needs.version.outputs.version }}
           path: artifacts/
           retention-days: 30
 
-      # One rolling release per channel; each build replaces its files. The setup goes up BEFORE the manifest,
-      # so an installation never reads a manifest whose setup is not there yet.
+      # One rolling release per channel; each build replaces its files. The packages go up BEFORE the manifest,
+      # so an installation never reads a manifest whose package is not there yet.
       - name: Publish to the update channel
-        if: github.event_name == 'push' && steps.ver.outputs.channel != 'local'
+        if: github.event_name == 'push' && needs.version.outputs.channel != 'local'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          channel="${{ steps.ver.outputs.channel }}"
-          version="${{ steps.appver.outputs.version }}"
+          channel="${{ needs.version.outputs.channel }}"
+          version="${{ needs.version.outputs.version }}"
           tag="${channel}-channel"
           if [ "$channel" = "release" ]; then prerelease=""; title="ThixTunnel (Release-Kanal)"; else prerelease="--prerelease"; title="ThixTunnel (Nightly-Kanal)"; fi
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target "$GITHUB_SHA" --title "$title" $prerelease \
-              --notes "Neuester Build des Kanals ${channel}. ThixTunnelSetup.exe installiert oder aktualisiert ThixTunnel; installierte Versionen aktualisieren sich von hier aus selbst."
+              --notes "Neuester Build des Kanals ${channel}. Windows: ThixTunnelSetup.exe installiert oder aktualisiert ThixTunnel. macOS: ThixTunnel-macOS-arm64.dmg (Apple Silicon) bzw. -x64.dmg (Intel) öffnen und ThixTunnel in „Programme“ ziehen. Installierte Versionen aktualisieren sich von hier aus selbst."
           fi
-          gh release upload "$tag" artifacts/ThixTunnelSetup.exe --clobber
+          gh release upload "$tag" artifacts/ThixTunnelSetup.exe artifacts/ThixTunnel-macOS-*.zip artifacts/ThixTunnel-macOS-*.dmg --clobber
           gh release upload "$tag" artifacts/thixtunnel-update.json --clobber
           gh release edit "$tag" --title "$title – $version"
           echo "Published $version to $tag"
 
       - name: Versioned release
-        if: github.event_name == 'push' && steps.ver.outputs.channel == 'release'
+        if: github.event_name == 'push' && needs.version.outputs.channel == 'release'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          version="${{ steps.appver.outputs.version }}"
-          cp artifacts/ThixTunnelSetup.exe "artifacts/ThixTunnelSetup-${version}.exe"
+          version="${{ needs.version.outputs.version }}"
+          cd artifacts
+          cp ThixTunnelSetup.exe "ThixTunnelSetup-${version}.exe"
+          for arch in arm64 x64; do cp "ThixTunnel-macOS-${arch}.dmg" "ThixTunnel-${version}-macOS-${arch}.dmg"; done
           gh release create "v${version}" --target "$GITHUB_SHA" --title "ThixTunnel ${version}" --generate-notes \
-            "artifacts/ThixTunnelSetup-${version}.exe"
+            "ThixTunnelSetup-${version}.exe" "ThixTunnel-${version}-macOS-arm64.dmg" "ThixTunnel-${version}-macOS-x64.dmg"

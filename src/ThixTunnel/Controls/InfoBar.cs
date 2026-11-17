@@ -1,5 +1,7 @@
-using System.Windows;
-using System.Windows.Controls;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 
 namespace ThixTunnel.Controls;
 
@@ -15,7 +17,7 @@ public enum InfoSeverity
 public sealed class InfoBar : Border
 {
     private readonly TextBlock _icon = new() { Margin = new Thickness(0, 1, 12, 0), FontSize = 16, VerticalAlignment = VerticalAlignment.Top };
-    private readonly TextBlock _text = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private readonly SelectableTextBlock _text = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
 
     public InfoBar()
     {
@@ -23,15 +25,15 @@ public sealed class InfoBar : Border
         BorderThickness = new Thickness(1);
         Padding = new Thickness(14, 10, 14, 10);
         Margin = new Thickness(0, 0, 0, 16);
-        _icon.SetResourceReference(TextBlock.FontFamilyProperty, "IconFont");
-        Child = new DockPanel { Children = { _icon, _text } };
+        _icon.FontFamily = Ui.IconFont;
         DockPanel.SetDock(_icon, Dock.Left);
-        Visibility = Visibility.Collapsed;
+        Child = new DockPanel { Children = { _icon, _text } };
+        IsVisible = false;
     }
 
     public string Text
     {
-        get => _text.Text;
+        get => _text.Text ?? "";
         set => Show(value, InfoSeverity.Info);
     }
 
@@ -45,11 +47,10 @@ public sealed class InfoBar : Border
             InfoSeverity.Error => ("IconWarning", "DangerBrush", "DangerSoftBrush"),
             _ => ("IconInfo", "AccentHoverBrush", "NeutralSoftBrush"),
         };
-        _icon.SetResourceReference(TextBlock.TextProperty, icon);
-        _icon.SetResourceReference(TextBlock.ForegroundProperty, brush);
-        SetResourceReference(BackgroundProperty, background);
-        SetResourceReference(BorderBrushProperty, background);
-        Visibility = string.IsNullOrEmpty(message) ? Visibility.Collapsed : Visibility.Visible;
+        _icon.Text = Ui.Icon(icon);
+        _icon.Foreground = Ui.Brush(brush);
+        Background = BorderBrush = Ui.Brush(background);
+        IsVisible = !string.IsNullOrEmpty(message);
     }
 
     public void Clear() => Show("", InfoSeverity.Info);

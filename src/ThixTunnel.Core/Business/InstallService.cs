@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 using ThixTunnel.Core.Infrastructure;
 
@@ -8,15 +9,17 @@ namespace ThixTunnel.Core.Business;
 public sealed record InstallOptions(bool StartWithWindows, bool DesktopShortcut);
 
 /// <summary>
-/// ThixTunnel installs itself - like the Matgate agent and the MatMon setup, without a separate installer tool.
+/// Windows only (macOS: the app bundle, MacUpdateService). ThixTunnel installs itself - like the Matgate agent and the
+/// MatMon setup, without a separate installer tool.
 /// The published ThixTunnel.exe is the setup: started from anywhere else it copies itself to
 /// %LocalAppData%\Programs\ThixTunnel (per user, no administrator rights), creates the Start menu entry, the entry in
 /// "Installierte Apps" and optionally the autostart and a desktop shortcut. "--uninstall" removes every one of them.
 /// User data (%AppData%\ThixTunnel) stays unless the user explicitly deletes it while uninstalling.
 /// </summary>
+[SupportedOSPlatform("windows")]
 public static class InstallService
 {
-    public const string UpdateArgument = "--update";
+    public const string UpdateArgument = UpdateService.WindowsUpdateArgument;
     public const string UninstallArgument = "--uninstall";
     public const string QuietArgument = "--quiet";
     public const string ExecutableName = "ThixTunnel.exe";

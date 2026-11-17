@@ -1,11 +1,11 @@
-using System.Diagnostics;
-using System.Windows;
-using System.Windows.Controls;
-using Microsoft.Win32;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Infrastructure;
 using ThixTunnel.Core.Models;
+using ThixTunnel.Dialogs;
 
 namespace ThixTunnel.Pages;
 
@@ -22,9 +22,17 @@ public partial class SettingsPage : UserControl, IDisposable
     public const int UpdatesTab = 4;
     public const int AdvancedTab = 5;
 
+    private static readonly FilePickerFileType TransferFileType = new("ThixTunnel-Export") { Patterns = ["*.thixtunnel.json", "*.json"] };
+
     private readonly RouteListPage _routes = new();
     private readonly ProfileListPage _profiles = new(null) { IsEmbedded = true };
     private UpdateManifest? _availableUpdate;
+
+    /// <summary>For the XAML loader and previewer.</summary>
+    public SettingsPage()
+        : this(GeneralTab)
+    {
+    }
 
     public SettingsPage(int tabIndex)
     {
@@ -32,10 +40,13 @@ public partial class SettingsPage : UserControl, IDisposable
         RoutesHost.Content = _routes;
         ProfilesHost.Content = _profiles;
         Tabs.SelectedIndex = tabIndex;
+        RefreshSaveButton();
         ImportButton.IsEnabled = !AccessPolicy.IsConfigurationLocked;
+        CheckUpdatesToggle.Changed += OnCheckUpdatesChanged;
 
         var settings = SettingsService.Get();
         StartWithWindowsToggle.IsChecked = settings.StartWithWindows;
+        StartWithWindowsToggle.IsVisible = AutostartService.IsSupported;
         StartInTrayToggle.IsChecked = settings.StartInTray;
         KeepRunningToggle.IsChecked = settings.KeepRunningInTray;
         NotifyToggle.IsChecked = settings.NotifyOnErrors;
@@ -43,8 +54,11 @@ public partial class SettingsPage : UserControl, IDisposable
         AutoInstallToggle.IsChecked = settings.InstallUpdatesAutomatically;
         AutoInstallToggle.IsEnabled = settings.CheckForUpdates;
         SshPathBox.Text = settings.SshExecutablePath;
-        SshPathField.Hint = "Leer = Windows OpenSSH (" + (SshExecutableHint() ?? "nicht gefunden – optionales Windows-Feature „OpenSSH-Client“ installieren") + ")";
-        AutoConnectInfo.Show("Automatisches Verbinden wird je Tunnelroute festgelegt (Verbindungen › Bearbeiten › Automatisierung).", InfoSeverity.Info);
+        var systemSsh = Ui.SystemSshPath;
+        SshPathField.Hint = OperatingSystem.IsWindows()
+            ? "Leer = Windows OpenSSH (" + (systemSsh ?? "nicht gefunden – optionales Windows-Feature „OpenSSH-Client“ installieren") + ")"
+            : "Leer = OpenSSH des Systems (" + (systemSsh ?? "nicht gefunden") + ")";
+        AutoConnectInfo.Show("Automatisches Verbinden wird je Verbindung festgelegt (Verbindungen › Bearbeiten › Automatisierung).", InfoSeverity.Info);
 
         VersionText.Text = AppInfo.Version;
         ChannelText.Text = AppInfo.Channel switch
@@ -58,14 +72,17 @@ public partial class SettingsPage : UserControl, IDisposable
         var updatesPossible = UpdateService.CanUpdate;
         CheckButton.IsEnabled = updatesPossible;
         UpdateOptionsTile.IsEnabled = updatesPossible;
-        ReleasePageButton.Visibility = AppInfo.IsLocalBuild ? Visibility.Collapsed : Visibility.Visible;
+        ReleasePageButton.IsVisible = !AppInfo.IsLocalBuild;
 
+        var policyHint = OperatingSystem.IsMacOS()
+            ? $"Administratoren setzen diese Werte (true) mit einem Konfigurationsprofil für die Domain {AccessPolicy.MacPolicyDomain} (LockConfiguration, DenyNetworkBinding, DisableUpdates)."
+            : @"Administratoren setzen diese Werte als DWORD = 1 unter HKLM\SOFTWARE\Policies\ThixTunnel (LockConfiguration, DenyNetworkBinding, DisableUpdates).";
         PolicyText.Text = string.Join(Environment.NewLine,
             $"Konfiguration gesperrt: {YesNo(AccessPolicy.IsConfigurationLocked)}",
             $"Nur Loopback-Adressen: {YesNo(AccessPolicy.IsNetworkBindingDenied)}",
             $"Updates deaktiviert: {YesNo(AccessPolicy.AreUpdatesDisabled)}",
             "",
-            @"Administratoren setzen diese Werte als DWORD = 1 unter HKLM\SOFTWARE\Policies\ThixTunnel (LockConfiguration, DenyNetworkBinding, DisableUpdates).");
+            policyHint);
 
         if (AccessPolicy.IsConfigurationLocked)
         {
@@ -82,46 +99,63 @@ public partial class SettingsPage : UserControl, IDisposable
 
     public void SelectTab(int tabIndex) => Tabs.SelectedIndex = tabIndex;
 
-    private void OnTabChanged(object sender, SelectionChangedEventArgs e)
+    private void OnTabChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (e.OriginalSource != Tabs)
+        if (e.Source != Tabs)
         {
             return; // combo boxes and lists inside the tabs raise the same event
         }
 
-        SaveButton.Visibility = Tabs.SelectedIndex is RoutesTab or ProfilesTab or TransferTab ? Visibility.Collapsed : Visibility.Visible;
+        RefreshSaveButton();
     }
 
-    private void OnExportClick(object sender, RoutedEventArgs e)
+    private void RefreshSaveButton() => SaveButton.IsVisible = Tabs.SelectedIndex is not (RoutesTab or ProfilesTab or TransferTab);
+
+    private async void OnExportClick(object? sender, RoutedEventArgs e)
     {
-        var dialog = new SaveFileDialog
+        if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage)
+        {
+            return;
+        }
+
+        var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "SSH-Profile und Verbindungen exportieren",
-            Filter = TransferService.FileFilter,
-            FileName = TransferService.DefaultFileName,
-        };
-        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
+            SuggestedFileName = TransferService.DefaultFileName,
+            FileTypeChoices = [TransferFileType],
+            DefaultExtension = "json",
+        });
+        if (file?.TryGetLocalPath() is not { } path)
         {
             return;
         }
 
         var exported = (Profiles: 0, Routes: 0);
-        if (PageActions.Run(() => exported = TransferService.Export(dialog.FileName), TransferResult))
+        if (PageActions.Run(() => exported = TransferService.Export(path), TransferResult))
         {
-            TransferResult.Show($"{exported.Profiles} Profile und {exported.Routes} Verbindungen exportiert nach {dialog.FileName}.", InfoSeverity.Success);
+            TransferResult.Show($"{exported.Profiles} Profile und {exported.Routes} Verbindungen exportiert nach {path}.", InfoSeverity.Success);
         }
     }
 
-    private void OnImportClick(object sender, RoutedEventArgs e)
+    private async void OnImportClick(object? sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog { Title = "SSH-Profile und Verbindungen importieren", Filter = TransferService.FileFilter };
-        if (dialog.ShowDialog(Window.GetWindow(this)) != true)
+        if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage)
+        {
+            return;
+        }
+
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "SSH-Profile und Verbindungen importieren",
+            FileTypeFilter = [TransferFileType],
+        });
+        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path)
         {
             return;
         }
 
         TransferFile? file = null;
-        if (!PageActions.Run(() => file = TransferService.Read(dialog.FileName), TransferResult))
+        if (!PageActions.Run(() => file = TransferService.Read(path), TransferResult))
         {
             return;
         }
@@ -130,13 +164,13 @@ public partial class SettingsPage : UserControl, IDisposable
         var question = $"Die Datei enthält {file!.Profiles.Count} Profile und {file.Routes.Count} Verbindungen " +
                        $"(exportiert am {file.ExportedAt.LocalDateTime:dd.MM.yyyy HH:mm}). " +
                        (replace ? "Vorhandene Einträge mit gleichem Namen werden ersetzt." : "Vorhandene Einträge mit gleichem Namen bleiben unverändert.");
-        if (!Dialogs.ConfirmDialog.Ask(Window.GetWindow(this), "Importieren", question, "Importieren"))
+        if (!await ConfirmDialog.AskAsync(Ui.WindowOf(this), "Importieren", question, "Importieren"))
         {
             return;
         }
 
         ImportResult? result = null;
-        if (!PageActions.Run(() => result = TransferService.Import(dialog.FileName, replace), TransferResult))
+        if (!PageActions.Run(() => result = TransferService.Import(path, replace), TransferResult))
         {
             return;
         }
@@ -148,16 +182,10 @@ public partial class SettingsPage : UserControl, IDisposable
 
     private static string YesNo(bool value) => value ? "ja" : "nein";
 
-    private static string? SshExecutableHint()
-    {
-        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "OpenSSH", "ssh.exe");
-        return File.Exists(path) ? path : null;
-    }
-
     private void ShowUpdateResult(UpdateCheckResult? result)
     {
         _availableUpdate = result?.Manifest;
-        InstallButton.Visibility = result?.IsUpdateAvailable == true ? Visibility.Visible : Visibility.Collapsed;
+        InstallButton.IsVisible = result?.IsUpdateAvailable == true;
         if (result is null)
         {
             UpdateStatus.Clear();
@@ -177,7 +205,7 @@ public partial class SettingsPage : UserControl, IDisposable
         }
     }
 
-    private void OnSaveClick(object sender, RoutedEventArgs e)
+    private void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         var settings = SettingsService.Get();
         settings.StartWithWindows = StartWithWindowsToggle.IsChecked;
@@ -186,7 +214,7 @@ public partial class SettingsPage : UserControl, IDisposable
         settings.NotifyOnErrors = NotifyToggle.IsChecked;
         settings.CheckForUpdates = CheckUpdatesToggle.IsChecked;
         settings.InstallUpdatesAutomatically = AutoInstallToggle.IsChecked;
-        settings.SshExecutablePath = SshPathBox.Text;
+        settings.SshExecutablePath = SshPathBox.Text ?? "";
 
         if (PageActions.Run(() => SettingsService.Save(settings, App.ExecutablePath), MessageBar, Form))
         {
@@ -198,9 +226,9 @@ public partial class SettingsPage : UserControl, IDisposable
         }
     }
 
-    private void OnBackClick(object sender, RoutedEventArgs e) => PageWindow.CloseHostOf(this);
+    private void OnBackClick(object? sender, RoutedEventArgs e) => PageWindow.CloseHostOf(this);
 
-    private async void OnCheckClick(object sender, RoutedEventArgs e)
+    private async void OnCheckClick(object? sender, RoutedEventArgs e)
     {
         CheckButton.IsEnabled = false;
         UpdateStatus.Show("Suche nach Updates …", InfoSeverity.Info);
@@ -218,7 +246,7 @@ public partial class SettingsPage : UserControl, IDisposable
         }
     }
 
-    private async void OnInstallClick(object sender, RoutedEventArgs e)
+    private async void OnInstallClick(object? sender, RoutedEventArgs e)
     {
         if (_availableUpdate is null)
         {
@@ -226,7 +254,7 @@ public partial class SettingsPage : UserControl, IDisposable
         }
 
         InstallButton.IsEnabled = CheckButton.IsEnabled = false;
-        DownloadProgress.Visibility = Visibility.Visible;
+        DownloadProgress.IsVisible = true;
         UpdateStatus.Show($"Lade Version {_availableUpdate.Version} …", InfoSeverity.Info);
         try
         {
@@ -236,30 +264,39 @@ public partial class SettingsPage : UserControl, IDisposable
         {
             UpdateStatus.Show($"Update fehlgeschlagen: {exception.Message}", InfoSeverity.Error);
             InstallButton.IsEnabled = CheckButton.IsEnabled = true;
-            DownloadProgress.Visibility = Visibility.Collapsed;
+            DownloadProgress.IsVisible = false;
         }
     }
 
-    private void OnReleasePageClick(object sender, RoutedEventArgs e) => OpenUrl(UpdateService.ReleasePageUrl(AppInfo.Channel));
+    private void OnReleasePageClick(object? sender, RoutedEventArgs e) => Ui.OpenExternal(UpdateService.ReleasePageUrl(AppInfo.Channel));
 
-    private void OnBrowseSshClick(object sender, RoutedEventArgs e)
+    private async void OnBrowseSshClick(object? sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog { Title = "ssh.exe wählen", Filter = "ssh.exe|ssh.exe|Programme (*.exe)|*.exe" };
-        if (dialog.ShowDialog(Window.GetWindow(this)) == true)
+        if (TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage)
         {
-            SshPathBox.Text = dialog.FileName;
+            return;
+        }
+
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "ssh-Programm wählen",
+            FileTypeFilter = OperatingSystem.IsWindows()
+                ? [new FilePickerFileType("ssh.exe") { Patterns = ["ssh.exe"] }, new FilePickerFileType("Programme") { Patterns = ["*.exe"] }]
+                : [FilePickerFileTypes.All],
+        });
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+        {
+            SshPathBox.Text = path;
         }
     }
 
-    private void OnOpenDataFolderClick(object sender, RoutedEventArgs e) => OpenFolder(AppPaths.DataDirectory);
+    private void OnOpenDataFolderClick(object? sender, RoutedEventArgs e) => OpenFolder(AppPaths.DataDirectory);
 
-    private void OnOpenLogFolderClick(object sender, RoutedEventArgs e) => OpenFolder(AppPaths.LogDirectory);
+    private void OnOpenLogFolderClick(object? sender, RoutedEventArgs e) => OpenFolder(AppPaths.LogDirectory);
 
     internal static void OpenFolder(string path)
     {
         Directory.CreateDirectory(path);
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = false });
+        Ui.OpenExternal(path);
     }
-
-    internal static void OpenUrl(string url) => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
 }
