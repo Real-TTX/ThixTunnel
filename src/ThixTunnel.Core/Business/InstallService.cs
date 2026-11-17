@@ -6,7 +6,8 @@ using ThixTunnel.Core.Infrastructure;
 namespace ThixTunnel.Core.Business;
 
 /// <summary>What the setup decides on a first installation. An update keeps what is installed.</summary>
-public sealed record InstallOptions(bool StartWithWindows, bool DesktopShortcut);
+/// <summary>The choices of the setup (SETUP-02): start at sign-in, desktop shortcut, automatic updates.</summary>
+public sealed record InstallOptions(bool StartWithWindows, bool DesktopShortcut, bool InstallUpdatesAutomatically = false);
 
 /// <summary>
 /// Windows only (macOS: the app bundle, MacUpdateService). ThixTunnel installs itself - like the Matgate agent and the
@@ -62,7 +63,8 @@ public static class InstallService
         get
         {
             using var key = Registry.CurrentUser.OpenSubKey(UninstallKeyPath);
-            return key?.GetValue("DisplayVersion") as string;
+            // "0.1.42-20261104 · release" (SETUP-07): the number is what comes before the channel.
+            return (key?.GetValue("DisplayVersion") as string)?.Split(" · ")[0];
         }
     }
 
@@ -108,6 +110,16 @@ public static class InstallService
             }
 
             RemoveLegacyInnoSetup(log);
+        }
+
+        if (options is not null)
+        {
+            // The full auto update of the setup's options; an update keeps what the user chose since.
+            DataStore.Update(data =>
+            {
+                data.Settings.CheckForUpdates |= options.InstallUpdatesAutomatically;
+                data.Settings.InstallUpdatesAutomatically = options.InstallUpdatesAutomatically;
+            });
         }
 
         WriteUninstallEntry();
@@ -257,7 +269,7 @@ public static class InstallService
     {
         using var key = Registry.CurrentUser.CreateSubKey(UninstallKeyPath);
         key.SetValue("DisplayName", AppInfo.ProductName);
-        key.SetValue("DisplayVersion", AppInfo.Version);
+        key.SetValue("DisplayVersion", $"{AppInfo.Version} · {AppInfo.Channel}");
         key.SetValue("Publisher", "Matthias Schmoldt");
         key.SetValue("DisplayIcon", InstalledExecutable + ",0");
         key.SetValue("InstallLocation", ProgramFolder);

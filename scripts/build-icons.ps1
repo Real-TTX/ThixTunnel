@@ -6,7 +6,9 @@
     Same geometry as branding/logo-*.svg (256 grid):
       16-32 px  : small design (logo-small.svg) - thick portal, one node
       48+ px    : full design (logo-icon.svg)   - portal with a route of three hops
-    Output: src/ThixTunnel/Assets/thixtunnel.ico and branding/png/thixtunnel-<size>.png
+    Output: src/ThixTunnel/Assets/thixtunnel.ico, branding/png/thixtunnel-<size>.png, and the marks of the app:
+      Assets/logo-256.png (title bar, about, setup), Assets/tray-windows.png (64 px, small design: the tray icon MatDesktop
+      draws the state dot into) and Assets/tray-macos.png (64 px template image, black on transparent, for the menu bar).
     Runs in Windows PowerShell 5.1 or PowerShell 7 on Windows (System.Drawing).
 #>
 param(
@@ -46,7 +48,7 @@ function Fill-Circle($g, $brush, [float] $cx, [float] $cy, [float] $r) {
     $g.FillEllipse($brush, $cx - $r, $cy - $r, 2 * $r, 2 * $r)
 }
 
-function Draw-Icon([int] $size) {
+function Draw-Icon([int] $size, [bool] $small = ($size -le 32)) {
     $bitmap = New-Object System.Drawing.Bitmap $size, $size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bitmap)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
@@ -56,7 +58,7 @@ function Draw-Icon([int] $size) {
 
     $round = [System.Drawing.Drawing2D.LineCap]::Round
 
-    if ($size -le 32) {
+    if ($small) {
         $tile = New-RoundedRectangle 0 0 256 256 60
         $g.FillPath((New-Object System.Drawing.SolidBrush (New-Color '#16294A')), $tile)
         $pen = New-Object System.Drawing.Pen (New-Color '#4DA3FF'), 40
@@ -140,3 +142,30 @@ $writer.Flush()
 
 Write-Host "Icon written: $icoPath"
 Write-Host "PNGs written: $pngDirectory"
+
+# The marks of the app (MatDesktop: title bar, setup, tray). The tray marks are 64 px; MatTrayIcons cuts the state dot
+# into their bottom right corner (TRAY-02).
+$assets = Split-Path $icoPath
+$bitmap = Draw-Icon 256
+$bitmap.Save((Join-Path $assets 'logo-256.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+$bitmap.Dispose()
+$bitmap = Draw-Icon 64 $true
+$bitmap.Save((Join-Path $assets 'tray-windows.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+$bitmap.Dispose()
+
+# macOS template image: the portal and its node in black on transparent, no tile (the menu bar colours it).
+$template = New-Object System.Drawing.Bitmap 64, 64, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+$g = [System.Drawing.Graphics]::FromImage($template)
+$g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$g.Clear([System.Drawing.Color]::Transparent)
+$g.ScaleTransform(64 / 256.0, 64 / 256.0)
+$black = New-Color '#000000'
+$pen = New-Object System.Drawing.Pen $black, 44
+$pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+$g.DrawPath($pen, (New-Portal 44 212 120 224))
+Fill-Circle $g (New-Object System.Drawing.SolidBrush $black) 128 166 34
+$g.Dispose()
+$template.Save((Join-Path $assets 'tray-macos.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+$template.Dispose()
+
+Write-Host "Marks written: $assets"

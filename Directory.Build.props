@@ -23,7 +23,7 @@
   -->
   <PropertyGroup>
     <ThixTunnelMajor>0</ThixTunnelMajor>
-    <ThixTunnelMinor>1</ThixTunnelMinor>
+    <ThixTunnelMinor>2</ThixTunnelMinor>
 
     <BuildNumber Condition="'$(BuildNumber)' == ''">0</BuildNumber>
     <Channel Condition="'$(Channel)' == ''">local</Channel>

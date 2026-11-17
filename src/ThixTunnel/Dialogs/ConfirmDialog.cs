@@ -1,29 +1,31 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using MatDesktop;
 using ThixTunnel.Controls;
 
 namespace ThixTunnel.Dialogs;
 
-/// <summary>A dark yes/no question (delete, quit with active tunnels). Buttons from positive to negative.</summary>
-public sealed class ConfirmDialog : ThemedWindow
+/// <summary>A yes/no question (delete, sign out). Buttons from positive to negative; Esc cancels.</summary>
+public sealed class ConfirmDialog : MatWindow
 {
     private bool _confirmed;
 
     private ConfirmDialog(string title, string message, string confirmText, bool isDestructive, bool hasCancel)
     {
         Title = title;
-        Width = 460;
+        Width = 440;
         SizeToContent = SizeToContent.Height;
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
+        this.Use(BackgroundProperty, "Mat.Surface");
 
         var confirm = new Button
         {
-            Content = new IconLabel { Icon = Ui.Icon(isDestructive ? "IconDelete" : "IconCheck"), Text = confirmText },
+            Content = new IconLabel { Icon = isDestructive ? "trash" : "check", Text = confirmText },
             IsDefault = !isDestructive,
-            Theme = Ui.Theme(isDestructive ? "DangerButton" : "PrimaryButton"),
+            Theme = Ui.Theme(isDestructive ? "MatButton.Danger" : "MatButton.Primary"),
         };
         confirm.Click += (_, _) =>
         {
@@ -34,15 +36,16 @@ public sealed class ConfirmDialog : ThemedWindow
         var actions = new ActionBar { Children = { confirm } };
         if (hasCancel)
         {
-            var cancel = new Button { Content = new IconLabel { Icon = Ui.Icon("IconBack"), Text = "Abbrechen" }, IsCancel = true, IsDefault = isDestructive };
+            var cancel = new Button { Content = new IconLabel { Icon = "x", Text = "Abbrechen" }, IsCancel = true, IsDefault = isDestructive };
             cancel.Click += (_, _) => Close();
             actions.Children.Add(cancel);
         }
 
-        var heading = new TextBlock { Text = title, FontSize = 18, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 10), TextWrapping = TextWrapping.Wrap };
-        var text = new SelectableTextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 22), Foreground = Ui.Brush("TextMutedBrush") };
+        var heading = new TextBlock { Text = title, FontSize = MatTokens.Type.FsLg, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 8), TextWrapping = TextWrapping.Wrap };
+        var text = new SelectableTextBlock { Text = message, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 22) }.Use(SelectableTextBlock.ForegroundProperty, "Mat.TextMuted");
 
-        Content = new StackPanel { Margin = new Thickness(24), Children = { heading, text, actions } };
+        Content = new StackPanel { Margin = new Thickness(24, 22), Children = { heading, text, actions } };
+        Opened += (_, _) => (hasCancel && isDestructive ? actions.Children[1] : confirm).Focus();
     }
 
     /// <summary>Asks the question; true when the user confirmed.</summary>

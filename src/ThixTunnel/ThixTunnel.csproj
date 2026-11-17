@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    The desktop application for Windows and macOS (Avalonia): windows, tray / menu bar icon and the SSH_ASKPASS
-    helper (same program).
+    The desktop application for Windows and macOS (Avalonia with MatDesktop, the desktop toolkit of MatDesign, copied
+    into MatDesktop/): the main window, tray / menu bar icon and the SSH_ASKPASS helper (same program).
     Windows: published self-contained single-file for win-x64; that ThixTunnel.exe is its own setup (InstallService).
     macOS:   published self-contained for osx-arm64 / osx-x64 and packed into ThixTunnel.app (scripts/package-macos.sh).
   -->
@@ -48,6 +48,12 @@
     <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
+    <!-- The snapshot command (Snapshot.cs) draws the windows without a screen. -->
+    <PackageReference Include="Avalonia.Headless" Version="$(AvaloniaVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ThixTunnel.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -57,7 +63,8 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\thixtunnel.ico" />
     <AvaloniaResource Include="Assets\logo-256.png" />
-    <AvaloniaResource Include="Assets\Fonts\FluentSystemIcons-Regular.ttf" />
+    <AvaloniaResource Include="Assets\tray-windows.png" />
+    <AvaloniaResource Include="Assets\tray-macos.png" />
   </ItemGroup>
 
 </Project>

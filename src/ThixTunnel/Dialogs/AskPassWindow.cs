@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using MatDesktop;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Infrastructure;
 
@@ -8,13 +9,15 @@ namespace ThixTunnel.Dialogs;
 
 /// <summary>
 /// The SSH_ASKPASS dialog. ssh starts the ThixTunnel program with the prompt as argument; the answer goes to standard
-/// output (straight to ssh). Two kinds: a secret (password, passphrase) or a yes/no question (unknown host key).
+/// output (straight to ssh). Two kinds: a secret (password, passphrase) or a yes/no question (unknown host key). A dialog
+/// of the program's own in MatDesktop's chrome: header with logo and title, the question, the footer with the primary
+/// button and Abbrechen.
 /// </summary>
-public sealed class AskPassWindow : ThemedWindow
+public sealed class AskPassWindow : MatWindow
 {
     private readonly TextBox _secret = new() { PasswordChar = '●' };
 
-    private AskPassWindow(string routeName, string prompt)
+    public AskPassWindow(string routeName, string prompt)
     {
         Avalonia.Automation.AutomationProperties.SetName(_secret, "Passwort");
         var isConfirmation = AskPassProtocol.IsConfirmation(prompt);
@@ -24,45 +27,39 @@ public sealed class AskPassWindow : ThemedWindow
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Topmost = true;
+        this.Use(BackgroundProperty, "Mat.Surface");
 
-        var heading = new TextBlock
-        {
-            Text = isConfirmation ? "Unbekannter Hostschlüssel" : "Anmeldung erforderlich",
-            FontSize = 18,
-            FontWeight = FontWeight.SemiBold,
-        };
-        var route = new TextBlock { Text = $"Tunnel „{routeName}“", Margin = new Thickness(0, 2, 0, 14), Foreground = Ui.Brush("TextMutedBrush") };
-        var promptText = new SelectableTextBlock { Text = prompt.Trim(), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) };
+        var body = new StackPanel { Margin = new Thickness(28, 20, 28, 22) };
+        body.Children.Add(Ui.Text($"Verbindung „{routeName}“", "MatText.Muted"));
+        var promptText = new SelectableTextBlock { Text = prompt.Trim(), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 14) };
         if (isConfirmation)
         {
-            promptText.Theme = Ui.Theme("MonoText");
-            promptText.FontSize = 12.5;
+            promptText.Use(SelectableTextBlock.FontFamilyProperty, "Mat.Mono");
+            promptText.FontSize = MatTokens.Type.FsSm;
         }
 
-        var panel = new StackPanel { Margin = new Thickness(24), Children = { heading, route, promptText } };
+        body.Children.Add(promptText);
 
         Button confirm;
         if (isConfirmation)
         {
-            var warning = new InfoBar();
+            var warning = new InfoBar { Margin = new Thickness(0) };
             warning.Show("Nur bestätigen, wenn der Fingerabdruck mit dem des Servers übereinstimmt. Der Schlüssel wird danach in known_hosts gespeichert.", InfoSeverity.Warning);
-            panel.Children.Add(warning);
-            confirm = new Button { Content = new IconLabel { Icon = Ui.Icon("IconCheck"), Text = "Vertrauen und verbinden" } };
-            confirm.Click += (_, _) => Finish("yes");
+            body.Children.Add(warning);
+            confirm = Ui.Button("shield", "Vertrauen und verbinden", "MatButton.Primary", () => Finish("yes"));
         }
         else
         {
-            panel.Children.Add(_secret);
-            confirm = new Button { Content = new IconLabel { Icon = Ui.Icon("IconConnect"), Text = "Anmelden" }, IsDefault = true };
-            confirm.Click += (_, _) => Finish(_secret.Text ?? "");
+            body.Children.Add(_secret);
+            confirm = Ui.Button("login", "Anmelden", "MatButton.Primary", () => Finish(_secret.Text ?? ""));
+            confirm.IsDefault = true;
             Opened += (_, _) => _secret.Focus();
         }
 
-        confirm.Theme = Ui.Theme("PrimaryButton");
-        var cancel = new Button { Content = new IconLabel { Icon = Ui.Icon("IconBack"), Text = "Abbrechen" }, IsCancel = true };
-        cancel.Click += (_, _) => Close();
-        panel.Children.Add(new ActionBar { Margin = new Thickness(0, 16, 0, 0), Children = { confirm, cancel } });
-        Content = panel;
+        var cancel = Ui.Button("x", "Abbrechen", click: Close);
+        cancel.IsCancel = true;
+        var header = MatDialogChrome.Header(Ui.Logo, "ThixTunnel", isConfirmation ? "Unbekannter Hostschlüssel" : "Anmeldung");
+        Content = MatDialogChrome.Compose(header, body, MatDialogChrome.Footer(null, confirm, cancel));
     }
 
     /// <summary>The answer for ssh; null when cancelled.</summary>

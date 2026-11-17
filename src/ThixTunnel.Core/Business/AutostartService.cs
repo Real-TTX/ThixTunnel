@@ -18,6 +18,7 @@ public static class AutostartService
     private const string LaunchAgentLabel = "info.schmoldt.thixtunnel";
 
     private static string? _launchAgentFolderForTests;
+    private static bool? _memoryEntryForTests;
 
     /// <summary>The LaunchAgent file (macOS).</summary>
     public static string LaunchAgentFile => Path.Combine(
@@ -28,6 +29,11 @@ public static class AutostartService
 
     public static bool IsEnabled()
     {
+        if (_memoryEntryForTests is { } entry)
+        {
+            return entry;
+        }
+
         if (OperatingSystem.IsWindows())
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
@@ -52,6 +58,12 @@ public static class AutostartService
     /// <summary>For the setup: installing and uninstalling the user's own program is not a configuration change.</summary>
     internal static void WriteEntry(string executablePath)
     {
+        if (_memoryEntryForTests is not null)
+        {
+            _memoryEntryForTests = true;
+            return;
+        }
+
         if (OperatingSystem.IsWindows())
         {
             WriteRunValue(executablePath);
@@ -65,6 +77,12 @@ public static class AutostartService
 
     internal static void RemoveEntry()
     {
+        if (_memoryEntryForTests is not null)
+        {
+            _memoryEntryForTests = false;
+            return;
+        }
+
         if (OperatingSystem.IsWindows())
         {
             RemoveRunValue();
@@ -98,6 +116,9 @@ public static class AutostartService
         """;
 
     internal static void UseLaunchAgentFolderForTests(string? folder) => _launchAgentFolderForTests = folder;
+
+    /// <summary>Snapshots and UI tests: the entry lives in memory (null = the real HKCU Run value / LaunchAgent again).</summary>
+    internal static void UseMemoryEntryForTests(bool? enabled) => _memoryEntryForTests = enabled;
 
     [SupportedOSPlatform("windows")]
     private static void WriteRunValue(string executablePath)

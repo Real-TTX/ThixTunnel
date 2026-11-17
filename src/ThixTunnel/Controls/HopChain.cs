@@ -2,10 +2,14 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using MatDesktop;
 
 namespace ThixTunnel.Controls;
 
-/// <summary>The SSH hops of a route as numbered chips with arrows: [1 Profil 1] → [2 Profil 2] → [Ziel 127.0.0.1:4453].</summary>
+/// <summary>
+/// The SSH hops of a connection as numbered chips with arrows: [1 Gateway] → [2 Datenbankserver] → [Ziel 127.0.0.1:5432].
+/// Colours from the tokens; several chains on one page work (no shared state).
+/// </summary>
 public sealed class HopChain : WrapPanel
 {
     public static readonly StyledProperty<IReadOnlyList<string>?> HopsProperty =
@@ -46,15 +50,17 @@ public sealed class HopChain : WrapPanel
             Children.Add(Chip((index + 1).ToString(), hops[index]));
         }
 
-        if (!string.IsNullOrEmpty(Target))
+        if (string.IsNullOrEmpty(Target))
         {
-            if (hops.Count > 0)
-            {
-                Children.Add(Arrow());
-            }
-
-            Children.Add(Chip("Ziel", Target));
+            return;
         }
+
+        if (hops.Count > 0)
+        {
+            Children.Add(Arrow());
+        }
+
+        Children.Add(Chip("Ziel", Target));
     }
 
     private static Border Chip(string number, string text)
@@ -63,33 +69,24 @@ public sealed class HopChain : WrapPanel
         {
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(7, 1, 7, 2),
-            Margin = new Thickness(0, 0, 10, 0),
-            Background = Ui.Brush("SelectionBrush"),
-            Child = new TextBlock { Text = number, FontSize = 13, FontWeight = FontWeight.SemiBold },
-        };
+            Margin = new Thickness(0, 0, 8, 0),
+            Child = new TextBlock { Text = number, FontWeight = FontWeight.SemiBold }.Use(TextBlock.ForegroundProperty, "Mat.AccentText"),
+        }.Use(Border.BackgroundProperty, "Mat.AccentSoft");
 
         return new Border
         {
             BorderThickness = new Thickness(1),
-            BorderBrush = Ui.Brush("BorderBrush"),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(8, 6, 12, 6),
+            Padding = new Thickness(6, 5, 12, 5),
             Margin = new Thickness(0, 0, 0, 8),
             Child = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 Children = { numberBadge, new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center } },
             },
-        };
+        }.Use(Border.BorderBrushProperty, "Mat.Border").Use(Border.CornerRadiusProperty, "Mat.Radius").Use(Border.BackgroundProperty, "Mat.Surface2");
     }
 
-    private static TextBlock Arrow() => new()
-    {
-        Margin = new Thickness(12, 0, 12, 8),
-        VerticalAlignment = VerticalAlignment.Center,
-        FontSize = 14,
-        FontFamily = Ui.IconFont,
-        Text = Ui.Icon("IconArrowRight"),
-        Foreground = Ui.Brush("TextMutedBrush"),
-    };
+    private static MatIcon Arrow() =>
+        new MatIcon { Icon = "arrow-right", Size = 16, Margin = new Thickness(10, 0, 10, 8), VerticalAlignment = VerticalAlignment.Center }
+            .Use(MatIcon.ForegroundProperty, "Mat.TextMuted");
 }

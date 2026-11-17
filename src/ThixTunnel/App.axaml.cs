@@ -1,12 +1,13 @@
-using System.IO.Pipes;
 using System.Net.NetworkInformation;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using MatDesktop;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Infrastructure;
+using ThixTunnel.Core.Models;
 using ThixTunnel.Dialogs;
 using TrayIcon = ThixTunnel.Tray.TrayIcon;
 
@@ -16,31 +17,41 @@ namespace ThixTunnel;
 /// Start-up and end of ThixTunnel.
 ///  - Started by ssh as SSH_ASKPASS: only the prompt dialog, then exit.
 ///  - Windows: the published ThixTunnel.exe is also its setup (RunSetupIfRequested).
-///  - One instance per user and data folder: a second start opens the window of the first one.
-///  - "--autostart" (sign-in) and "--tray" (after an update) may start hidden in the tray / menu bar.
+///  - The look is MatDesktop's theme with ThixTunnel's accent (DESK-02).
+///  - One instance per user and data folder (MatSingleInstance, DESK-05): a second start opens the window of the first one.
+///  - "--autostart" (sign-in) and "--tray" (after an update) start hidden in the tray / menu bar (DESK-06).
 /// </summary>
 public partial class App : Application
 {
     public const string TrayArgument = "--tray";
 
-    // One instance per data folder: a development run with its own THIXTUNNEL_DATA_DIR does not meet the installed one.
-    private static readonly string InstanceSuffix = Environment.GetEnvironmentVariable(AppPaths.DataDirectoryVariable) is { Length: > 0 }
-        ? "." + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(AppPaths.DataDirectory.ToUpperInvariant())))[..16]
-        : "";
-
-    private static readonly string InstanceName = "ThixTunnel.SingleInstance" + InstanceSuffix;
-    private static readonly string ShowWindowPipeName = "ThixTunnel.ShowWindow" + InstanceSuffix + "." + Environment.UserName;
+    /// <summary>ThixTunnel's accent (IDENT-01): the blue of the logo's portal, deep enough for white text (4.95:1).</summary>
+    public const string Accent = "#1A6FD1";
 
     private IClassicDesktopStyleApplicationLifetime? _desktop;
-    private Mutex? _instanceMutex;
+    private MatSingleInstance? _instance;
     private TrayIcon? _trayIcon;
     private MainWindow? _mainWindow;
+    private MatInfoWindow? _infoWindow;
     private bool _isExiting;
 
     /// <summary>The program file; the autostart entry points to it, ssh starts it as SSH_ASKPASS.</summary>
     public static string ExecutablePath => Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "ThixTunnel");
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public static App Instance => (App)Current!;
+
+    /// <summary>The main window (null during setup and the askpass dialog).</summary>
+    public MainWindow? MainWindow => _mainWindow;
+
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+
+        // ThixTunnel speaks German, the texts of MatDesktop (title bar, menu, tray, setup) too.
+        MatText.Language = "de";
+        // the icon of every window (MatWindow.DefaultIcon): the main window, the dialogs, the setup
+        MatTheme.Install(this, new MatThemeOptions(Accent) { Icon = Ui.AppIcon });
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {
@@ -52,6 +63,7 @@ public partial class App : Application
 
         _desktop = desktop;
         var args = desktop.Args ?? [];
+        ApplyAppearance(SettingsService.Get().Appearance);
 
         if (AskPassProtocol.IsAskPassInvocation(out var routeName))
         {
@@ -73,6 +85,14 @@ public partial class App : Application
         Start(args);
     }
 
+    /// <summary>The setting "Erscheinungsbild": Wie das System, Hell, Dunkel (DESK-02).</summary>
+    public static void ApplyAppearance(AppearanceChoice appearance) => MatTheme.SetAppearance(appearance switch
+    {
+        AppearanceChoice.Light => MatAppearance.Light,
+        AppearanceChoice.Dark => MatAppearance.Dark,
+        _ => MatAppearance.System,
+    });
+
     /// <summary>
     /// Ends the process through the main loop. Shutting down straight from OnFrameworkInitializationCompleted (update,
     /// quiet uninstall, second instance) throws "Dispatcher shut down" because the loop has not started yet.
@@ -85,11 +105,10 @@ public partial class App : Application
         Log.Info($"ThixTunnel {AppInfo.Version} starting on {UpdateService.PlatformKey} ({string.Join(' ', args)})");
 
         TunnelManager.AskPassProgram = ExecutablePath;
-        _trayIcon = new TrayIcon(this);
         _mainWindow = new MainWindow();
+        _trayIcon = new TrayIcon(this);
 
-        var settings = SettingsService.Get();
-        var startHidden = args.Contains(TrayArgument) || (args.Contains(AutostartService.StartupArgument) && settings.StartInTray);
+        var startHidden = args.Contains(TrayArgument) || args.Contains(AutostartService.StartupArgument);
         if (!startHidden)
         {
             _mainWindow.Show();
@@ -109,7 +128,6 @@ public partial class App : Application
 
         UpdateCoordinator.Checked += (_, result) =>
         {
-            _mainWindow?.SetUpdateAvailable(result.IsUpdateAvailable);
             _trayIcon?.SetUpdateAvailable(result.IsUpdateAvailable);
             if (result is { IsUpdateAvailable: true, Manifest: { } manifest } && !SettingsService.Get().InstallUpdatesAutomatically)
             {
@@ -142,7 +160,55 @@ public partial class App : Application
         }
 
         navigate?.Invoke(_mainWindow);
-        _mainWindow.BringToFront();
+        _mainWindow.ShowInFront();
+    }
+
+    /// <summary>"Info …" of the tray (TRAY-05): the state as a dot, a word and a sentence, the facts, Open / Log folder / Close.</summary>
+    public void ShowInfo()
+    {
+        if (_isExiting)
+        {
+            return;
+        }
+
+        _infoWindow?.Close();
+        _infoWindow = new MatInfoWindow(CreateInfo());
+        _infoWindow.Closed += (_, _) => _infoWindow = null;
+        _infoWindow.Show();
+        _infoWindow.BringToFront();
+    }
+
+    /// <summary>What Info shows: the tunnels, ssh, the data folder (also the snapshots).</summary>
+    internal MatInfo CreateInfo()
+    {
+        var statuses = TunnelManager.GetStatuses();
+        var routes = RouteService.List();
+        var active = routes.Where(route => TunnelManager.GetStatus(route.Id).IsActive).Select(route => route.Name).ToList();
+        var failed = routes.Where(route => TunnelManager.GetStatus(route.Id).State == TunnelState.Failed).Select(route => route.Name).ToList();
+        var since = statuses.Where(status => status.State == TunnelState.Connected).Select(status => status.Since).DefaultIfEmpty().Min();
+        var sentence = active.Count == 0
+            ? routes.Count == 0 ? "Noch keine Verbindung eingerichtet." : "Kein Tunnel ist verbunden."
+            : since == default ? "Die Tunnel bauen sich auf." : $"Verbunden seit {since.ToLocalTime():HH:mm} Uhr.";
+        var configuredSsh = SettingsService.Get().SshExecutablePath;
+        List<MatFact> facts =
+        [
+            new("Verbindungen", $"{routes.Count} eingerichtet, {active.Count} aktiv"),
+            new("Aktiv", active.Count == 0 ? "–" : string.Join(", ", active)),
+        ];
+        if (failed.Count > 0)
+        {
+            facts.Add(new("Mit Fehler", string.Join(", ", failed)));
+        }
+
+        facts.Add(new("Automatik", TunnelManager.AutomationPaused ? "pausiert" : "an"));
+        facts.Add(new("ssh", configuredSsh.Length > 0 ? configuredSsh : Ui.SystemSshPath ?? "nicht gefunden", IsMono: true));
+        facts.Add(new("Datenordner", AppPaths.DataDirectory, IsMono: true));
+        return new MatInfo(AppInfo.ProductName, AppInfo.Version, AppInfo.Channel, TunnelStates.Overall(), sentence, facts)
+        {
+            Logo = Ui.Logo,
+            Open = () => ShowMainWindow(),
+            OpenLogFolder = () => Ui.OpenFolder(AppPaths.LogDirectory),
+        };
     }
 
     /// <summary>"Beenden": disconnects every tunnel and ends the application.</summary>
@@ -157,14 +223,14 @@ public partial class App : Application
         Log.Info("ThixTunnel exiting");
         TunnelManager.DisconnectAll();
         _trayIcon?.Dispose();
-        AppWindows.CloseAll();
+        _infoWindow?.Close();
         if (_mainWindow is not null)
         {
             _mainWindow.IsExiting = true;
             _mainWindow.Close();
         }
 
-        _instanceMutex?.Dispose();
+        _instance?.Dispose();
         _desktop?.Shutdown(0);
     }
 
@@ -191,7 +257,7 @@ public partial class App : Application
                 return true;
             }
 
-            Setup.SetupWindow.Run(isUninstall: true, removeProgramFolder =>
+            Setup.ThixTunnelSetup.Run(isUninstall: true, removeProgramFolder =>
             {
                 if (removeProgramFolder)
                 {
@@ -231,7 +297,7 @@ public partial class App : Application
 #endif
         if (isPublishedBuild && !InstallService.IsInstalledExecutable(ExecutablePath))
         {
-            Setup.SetupWindow.Run(isUninstall: false, _ => EndProcess(0));
+            Setup.ThixTunnelSetup.Run(isUninstall: false, _ => EndProcess(0));
             return true;
         }
 
@@ -239,21 +305,23 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// The first instance owns the mutex and listens on a pipe; a second start knocks on the pipe (the first one shows
-    /// its window) and ends. On Windows the setup may also ask the running instance to end (ListenForExitSignal).
+    /// One instance per user and data folder (MatSingleInstance, DESK-05: a named mutex and a pipe, on macOS a lock file
+    /// and a socket): a second start hands its arguments to the first one, which shows its window, and ends. A development
+    /// run with its own THIXTUNNEL_DATA_DIR does not meet the installed one. On Windows the setup may also ask the running
+    /// instance to end (ListenForExitSignal).
     /// </summary>
     private bool TakeSingleInstance()
     {
-        _instanceMutex = new Mutex(initiallyOwned: true, InstanceName, out var isFirst);
-        if (!isFirst)
+        var hasOwnDataFolder = Environment.GetEnvironmentVariable(AppPaths.DataDirectoryVariable) is { Length: > 0 };
+        _instance = new MatSingleInstance(AppInfo.ProductName, hasOwnDataFolder ? AppPaths.DataDirectory : null);
+        _instance.SecondStart += (_, _) => Ui.Post(() => ShowMainWindow());
+        if (!_instance.TryClaim(_desktop?.Args ?? []))
         {
-            KnockOnRunningInstance();
+            Log.Info("ThixTunnel runs already: its window was asked to show");
             return false;
         }
 
-        var listener = new Thread(ListenForSecondStarts) { IsBackground = true, Name = "ThixTunnel second start listener" };
-        listener.Start();
-        if (OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows() && !hasOwnDataFolder)
         {
             ListenForExitSignal();
         }
@@ -261,48 +329,10 @@ public partial class App : Application
         return true;
     }
 
-    private static void KnockOnRunningInstance()
-    {
-        try
-        {
-            using var client = new NamedPipeClientStream(".", ShowWindowPipeName, PipeDirection.Out);
-            client.Connect(2000);
-            client.WriteByte(1);
-        }
-        catch (Exception exception) when (exception is IOException or TimeoutException or UnauthorizedAccessException)
-        {
-            Log.Warning($"Could not reach the running instance: {exception.Message}");
-        }
-    }
-
-    private void ListenForSecondStarts()
-    {
-        while (true)
-        {
-            try
-            {
-                using var server = new NamedPipeServerStream(ShowWindowPipeName, PipeDirection.In, 1);
-                server.WaitForConnection();
-                server.ReadByte();
-                Ui.Post(() => ShowMainWindow());
-            }
-            catch (IOException exception)
-            {
-                Log.Warning($"Second start listener: {exception.Message}");
-                Thread.Sleep(1000);
-            }
-        }
-    }
-
     /// <summary>The setup asks a running ThixTunnel to end (update, uninstall): remember the active tunnels and end cleanly.</summary>
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     private void ListenForExitSignal()
     {
-        if (InstanceSuffix.Length > 0)
-        {
-            return; // a development run with its own data folder is none of the setup's business
-        }
-
         var exitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, InstallService.ExitSignalName);
         var listener = new Thread(() =>
         {
@@ -325,7 +355,7 @@ public partial class App : Application
     {
         Log.Error("Unhandled error", e.Exception);
         e.Handled = true;
-        if (e.Exception is Core.Models.BusinessException business)
+        if (e.Exception is BusinessException business)
         {
             _trayIcon?.ShowNotification("ThixTunnel", business.Message, isWarning: true);
             return;

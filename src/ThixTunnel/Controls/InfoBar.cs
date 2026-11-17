@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using MatDesktop;
 
 namespace ThixTunnel.Controls;
 
@@ -13,45 +14,50 @@ public enum InfoSeverity
     Error,
 }
 
-/// <summary>A message line with an icon (saved, error, hint). Hidden while it has no text.</summary>
+/// <summary>
+/// A message in a tinted box with an icon (results, hints, errors without a field), like MatUi's alert (mat-alert): the
+/// tint of the state behind it, the icon in the text colour of the state, the message in the text colour. Hidden until shown.
+/// </summary>
 public sealed class InfoBar : Border
 {
-    private readonly TextBlock _icon = new() { Margin = new Thickness(0, 1, 12, 0), FontSize = 16, VerticalAlignment = VerticalAlignment.Top };
-    private readonly SelectableTextBlock _text = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+    private readonly MatIcon _icon = new() { Size = 18, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 1, 10, 0) };
+    private readonly SelectableTextBlock _text = new() { TextWrapping = TextWrapping.Wrap };
 
     public InfoBar()
     {
-        CornerRadius = new CornerRadius(8);
-        BorderThickness = new Thickness(1);
-        Padding = new Thickness(14, 10, 14, 10);
-        Margin = new Thickness(0, 0, 0, 16);
-        _icon.FontFamily = Ui.IconFont;
-        DockPanel.SetDock(_icon, Dock.Left);
-        Child = new DockPanel { Children = { _icon, _text } };
         IsVisible = false;
+        this.Use(CornerRadiusProperty, "Mat.Radius");
+        Padding = new Thickness(MatTokens.Size.Space4, MatTokens.Size.Space3);
+        Margin = new Thickness(0, 0, 0, 12);
+        _text.Use(SelectableTextBlock.ForegroundProperty, "Mat.Text");
+        var dock = new DockPanel();
+        DockPanel.SetDock(_icon, Dock.Left);
+        dock.Children.Add(_icon);
+        dock.Children.Add(_text);
+        Child = dock;
     }
 
-    public string Text
-    {
-        get => _text.Text ?? "";
-        set => Show(value, InfoSeverity.Info);
-    }
+    /// <summary>The message shown (tests).</summary>
+    public string? Text => IsVisible ? _text.Text : null;
+
+    public InfoSeverity Severity { get; private set; }
 
     public void Show(string message, InfoSeverity severity)
     {
-        _text.Text = message;
-        var (icon, brush, background) = severity switch
+        var (state, icon) = severity switch
         {
-            InfoSeverity.Success => ("IconCheck", "SuccessBrush", "SuccessSoftBrush"),
-            InfoSeverity.Warning => ("IconWarning", "WarningBrush", "WarningSoftBrush"),
-            InfoSeverity.Error => ("IconWarning", "DangerBrush", "DangerSoftBrush"),
-            _ => ("IconInfo", "AccentHoverBrush", "NeutralSoftBrush"),
+            InfoSeverity.Success => ("Success", "check-circle"),
+            InfoSeverity.Warning => ("Warning", "alert"),
+            InfoSeverity.Error => ("Danger", "x-circle"),
+            _ => ("Info", "info"),
         };
-        _icon.Text = Ui.Icon(icon);
-        _icon.Foreground = Ui.Brush(brush);
-        Background = BorderBrush = Ui.Brush(background);
-        IsVisible = !string.IsNullOrEmpty(message);
+        Severity = severity;
+        this.Use(BackgroundProperty, $"Mat.{state}Bg");
+        _icon.Use(MatIcon.ForegroundProperty, $"Mat.{state}Text");
+        _icon.Icon = icon;
+        _text.Text = message;
+        IsVisible = true;
     }
 
-    public void Clear() => Show("", InfoSeverity.Info);
+    public void Hide() => IsVisible = false;
 }

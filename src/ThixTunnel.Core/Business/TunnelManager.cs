@@ -158,6 +158,22 @@ public static class TunnelManager
         }
     }
 
+    /// <summary>
+    /// Snapshots and UI tests: shows these states without any ssh process (null clears them). Only for a data folder
+    /// of their own - the real tunnels are never touched.
+    /// </summary>
+    public static void ShowStatusesForTests(IEnumerable<TunnelStatus>? statuses)
+    {
+        lock (Gate)
+        {
+            Statuses.Clear();
+            foreach (var status in statuses ?? [])
+            {
+                Statuses[status.RouteId] = status;
+            }
+        }
+    }
+
     /// <summary>Ends every tunnel of this application (also used when the application ends).</summary>
     public static void DisconnectAll()
     {

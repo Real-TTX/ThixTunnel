@@ -1,45 +1,39 @@
-<local:ThemedWindow xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:local="using:ThixTunnel"
-                    xmlns:pages="using:ThixTunnel.Pages"
-                    x:Class="ThixTunnel.MainWindow"
-                    Title="ThixTunnel" Width="340" Height="620" MinWidth="300" MinHeight="340">
-  <!-- Narrow and tall like a contact list: the connections. Everything else opens in its own window. -->
-  <DockPanel>
-    <!-- Head: brand and overall status -->
-    <Border DockPanel.Dock="Top" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
-            Padding="14,12">
-      <DockPanel>
-        <Image Source="/Assets/logo-256.png" Width="30" Height="30" RenderOptions.BitmapInterpolationMode="HighQuality" Margin="0,0,12,0" />
-        <StackPanel VerticalAlignment="Center">
-          <TextBlock FontSize="16" FontWeight="SemiBold">
-            <Run Text="Thix" /><Run Text="Tunnel" Foreground="{StaticResource AccentHoverBrush}" />
-          </TextBlock>
-          <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-            <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-            <TextBlock x:Name="StatusText" Margin="7,0,0,0" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="Kein Tunnel aktiv" />
-          </StackPanel>
+<mat:MatWindow xmlns="https://github.com/avaloniaui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               xmlns:mat="using:MatDesktop"
+               xmlns:controls="using:ThixTunnel.Controls"
+               x:Class="ThixTunnel.MainWindow"
+               Title="ThixTunnel" Width="1100" Height="720" MinWidth="760" MinHeight="460"
+               WindowStartupLocation="CenterScreen">
+  <!--
+    The one window of ThixTunnel, in MatDesktop's chrome: the title bar (DESK-03: logo and word mark, the state of the tunnels
+    and "Automatik pausieren" in the middle, the caption buttons / traffic lights), the menu (DESK-04: Verbindungen,
+    Einstellungen below the line, the version = About at its foot, folds to a rail) and the page. Edit pages open inside
+    it (Zurück / Esc go back). Built once; the tray, the Dock and a second start show it, the X hides it (DESK-06).
+  -->
+  <Grid RowDefinitions="Auto,*">
+    <mat:MatTitleBar x:Name="TitleBar" AppName="ThixTunnel" CloseKey="Esc">
+      <mat:MatTitleBar.WordMark>
+        <TextBlock VerticalAlignment="Center" FontSize="{DynamicResource Mat.FontSizeXl}" FontWeight="SemiBold">
+          <Run Text="Thix" /><Run Text="Tunnel" Foreground="{DynamicResource Mat.AccentText}" />
+        </TextBlock>
+      </mat:MatTitleBar.WordMark>
+      <mat:MatTitleBar.Center>
+        <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+          <Button x:Name="StateButton" Theme="{StaticResource MatButton.Ghost}" Click="OnStateClick" VerticalAlignment="Center"
+                  ToolTip.Tip="Zu den Verbindungen">
+            <mat:MatStateDot x:Name="StateDot" />
+          </Button>
+          <Button x:Name="PauseButton" Click="OnPauseClick" VerticalAlignment="Center">
+            <controls:IconLabel x:Name="PauseLabel" Icon="pause" Text="Automatik pausieren" />
+          </Button>
         </StackPanel>
-      </DockPanel>
-    </Border>
+      </mat:MatTitleBar.Center>
+    </mat:MatTitleBar>
 
-    <!-- Foot: version (opens "Über") bottom left, the other windows bottom right -->
-    <Border DockPanel.Dock="Bottom" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"
-            Padding="10,6">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-          <Button x:Name="UpdateHint" Theme="{StaticResource FlatIconButton}" Content="{StaticResource IconDownload}" Foreground="{StaticResource WarningBrush}"
-                  ToolTip.Tip="Update verfügbar" AutomationProperties.Name="Update verfügbar" IsVisible="False" Click="OnUpdateHintClick" />
-          <Button Theme="{StaticResource FlatIconButton}" Content="{StaticResource IconSettings}" ToolTip.Tip="Einstellungen"
-                  AutomationProperties.Name="Einstellungen" Click="OnSettingsClick" />
-        </StackPanel>
-        <Button x:Name="VersionLink" Theme="{StaticResource LinkButton}" Click="OnVersionClick" ToolTip.Tip="Über ThixTunnel"
-                AutomationProperties.Name="Über ThixTunnel" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="4,0">
-          <TextBlock x:Name="VersionText" Foreground="{StaticResource TextMutedBrush}" FontSize="12" TextTrimming="CharacterEllipsis" />
-        </Button>
-      </DockPanel>
-    </Border>
-
-    <pages:TunnelListPage x:Name="Connections" Margin="12" />
-  </DockPanel>
-</local:ThemedWindow>
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+      <mat:MatNav x:Name="Sidebar" AppName="ThixTunnel" />
+      <ContentControl Grid.Column="1" x:Name="PageHost" />
+    </Grid>
+  </Grid>
+</mat:MatWindow>

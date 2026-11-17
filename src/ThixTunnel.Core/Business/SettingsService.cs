@@ -3,7 +3,7 @@ using ThixTunnel.Core.Models;
 
 namespace ThixTunnel.Core.Business;
 
-/// <summary>Global settings. "Start with Windows" is read from and written to the registry (<see cref="AutostartService"/>).</summary>
+/// <summary>Global settings. "Bei der Anmeldung starten" is read from and written to the system (<see cref="AutostartService"/>).</summary>
 public static class SettingsService
 {
     public static event EventHandler? SettingsChanged;
@@ -27,6 +27,11 @@ public static class SettingsService
             throw new BusinessException("Das angegebene ssh-Programm wurde nicht gefunden.", nameof(AppSettings.SshExecutablePath));
         }
 
+        if (!Enum.IsDefined(settings.Appearance))
+        {
+            throw new BusinessException("Unbekanntes Erscheinungsbild.", nameof(AppSettings.Appearance));
+        }
+
         if (!settings.CheckForUpdates)
         {
             settings.InstallUpdatesAutomatically = false;
@@ -44,5 +49,24 @@ public static class SettingsService
         DataStore.Update(data => data.Settings = settings);
         SettingsChanged?.Invoke(null, EventArgs.Empty);
         return settings;
+    }
+
+    /// <summary>
+    /// Remembers the state of the window (size, folded menu). That is no configuration: a locked configuration
+    /// (LockConfiguration) does not stop it, and nothing else of the settings changes.
+    /// </summary>
+    public static void RememberWindow(double width, double height, bool isMenuFolded)
+    {
+        if (width < 100 || height < 100 || double.IsNaN(width) || double.IsNaN(height))
+        {
+            return;
+        }
+
+        DataStore.Update(data =>
+        {
+            data.Settings.WindowWidth = Math.Round(width);
+            data.Settings.WindowHeight = Math.Round(height);
+            data.Settings.IsMenuFolded = isMenuFolded;
+        });
     }
 }

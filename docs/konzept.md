@@ -60,18 +60,16 @@ Die [vier Mockups](mockups/README.md) zeigen Tunnelübersicht, Routen-Editor, Ei
 | Ebene | Einstellung | Geplante Wirkung |
 |---|---|---|
 | Anwendung | Bei Windows-Anmeldung starten | Startet ThixTunnel nach der Anmeldung des Benutzerkontos. |
-| Anwendung | Im Tray starten | Startet ohne geöffnetes Hauptfenster. |
-| Anwendung | Beim Schließen im Tray weiterlaufen | Blendet beim Fenster-X nur das Hauptfenster aus. |
 | Tunnelroute | Beim App-Start automatisch verbinden | Baut diese Route beim Start der Anwendung auf. |
 | Tunnelroute | Nach Verbindungsabbruch erneut verbinden | Stellt eine unbeabsichtigt unterbrochene Verbindung wieder her. |
 
-Die Option „Beim App-Start automatisch verbinden“ gilt auch bei einem manuellen Programmstart. Zusammen mit dem Windows-Autostart erfüllt sie den gewünschten Ablauf nach der Anmeldung. Eine zusätzliche Startverzögerung kann später ergänzt werden.
+Der Autostart startet ThixTunnel immer unsichtbar im Tray bzw. in der Menüleiste (MatDesign-Regel DESK-06, seit 2026-11-17; die früheren Optionen „Im Tray starten“ und „Beim Schließen im Tray weiterlaufen“ sind damit fest). Die Option „Beim App-Start automatisch verbinden“ gilt auch bei einem manuellen Programmstart. Zusammen mit dem Windows-Autostart erfüllt sie den gewünschten Ablauf nach der Anmeldung. Eine zusätzliche Startverzögerung kann später ergänzt werden.
 
 ## 6. Tray und Verbindungslebenszyklus
 
-Das Tray-Icon soll aktive Verbindungen und Fehler erkennen lassen. Der Status wird auch als Text angezeigt. Das Kontextmenü bietet „Öffnen“, die einzelnen Tunnel mit Verbinden/Trennen, „Automatische Verbindungen pausieren“, „Einstellungen“ und „Beenden“.
+Das Tray-Icon soll aktive Verbindungen und Fehler erkennen lassen. Der Status wird auch als Text angezeigt. Das Kontextmenü folgt der Reihenfolge aller Mat-Trays (TRAY-01): Name und Version, der Zustand in Worten, „ThixTunnel öffnen“, die einzelnen Tunnel mit Verbinden/Trennen, „Automatik pausieren“, „Info …“, „Einstellungen …“, „Log-Ordner öffnen“, „Update installieren …“ (nur wenn eines wartet) und „Beenden“.
 
-Bei aktivierter Tray-Option lässt das Fenster-X die Tunnel weiterlaufen. **„Beenden“ stoppt alle von ThixTunnel verwalteten Tunnel und beendet die Anwendung.** Ein zweiter Programmstart soll die vorhandene Instanz öffnen.
+Das Fenster-X (auch Esc) blendet das Fenster nur aus; die Tunnel laufen weiter. **„Beenden“ stoppt alle von ThixTunnel verwalteten Tunnel und beendet die Anwendung.** Ein zweiter Programmstart soll die vorhandene Instanz öffnen.
 
 **Manuelles Trennen beendet auch laufende Wiederholungsversuche.** Die Route bleibt für die laufende Sitzung getrennt, bis der Nutzer sie erneut verbindet. Nach einem späteren App-Neustart gilt ihre gespeicherte Auto-Verbindungsoption wieder.
 

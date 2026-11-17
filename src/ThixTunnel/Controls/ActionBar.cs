@@ -15,7 +15,7 @@ public sealed class ActionBar : Panel
 
     public static readonly StyledProperty<double> SpacingProperty = AvaloniaProperty.Register<ActionBar, double>(nameof(Spacing), 8);
 
-    public static readonly StyledProperty<double> SeparationProperty = AvaloniaProperty.Register<ActionBar, double>(nameof(Separation), 40);
+    public static readonly StyledProperty<double> SeparationProperty = AvaloniaProperty.Register<ActionBar, double>(nameof(Separation), 32);
 
     static ActionBar()
     {
