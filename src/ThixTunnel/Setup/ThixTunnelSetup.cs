@@ -5,6 +5,7 @@ using MatDesktop;
 using ThixTunnel.Controls;
 using ThixTunnel.Core.Business;
 using ThixTunnel.Core.Infrastructure;
+using ThixTunnel.Core.Models;
 
 namespace ThixTunnel.Setup;
 
@@ -38,10 +39,8 @@ internal static class ThixTunnelSetup
                 }
                 else
                 {
-                    var options = isUpdate
-                        ? null
-                        : new InstallOptions(run.Options.GetValueOrDefault("autostart"), run.Options.GetValueOrDefault("shortcut"), run.Options.GetValueOrDefault("updates"));
-                    await Task.Run(() => InstallService.Install(source, options, Report));
+                    var choices = isUpdate ? null : Choices(run.Options);
+                    await Task.Run(() => InstallService.Install(source, choices, Report));
                 }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException
@@ -90,10 +89,7 @@ internal static class ThixTunnelSetup
                 MatSetupStep.Welcome(
                     "ThixTunnel verwaltet SSH-Tunnel: SSH-Profile, mehrere Hops und lokale Portweiterleitungen, automatisch verbunden und nach Abbrüchen erneut. Es läuft im Infobereich der Taskleiste.",
                     Notes(hasSsh, $"Wird für dein Benutzerkonto installiert – ohne Administratorrechte – nach\n{programFolder}")),
-                MatSetupStep.WithOptions(null,
-                    MatSetupOption.Autostart("Im Infobereich, ohne Fenster; Verbindungen mit Auto-Verbindung werden aufgebaut"),
-                    MatSetupOption.DesktopShortcut("Ein Startmenü-Eintrag wird immer angelegt"),
-                    MatSetupOption.AutomaticUpdates("Neue Versionen ohne Rückfrage; aktive Tunnel werden danach wieder verbunden")),
+                MatSetupStep.WithOptions(null, [.. Options()]),
             ],
         };
 
@@ -111,6 +107,43 @@ internal static class ThixTunnelSetup
             DeleteDataDescription = "SSH-Profile, Verbindungen, Einstellungen und die von ThixTunnel angelegten Schlüssel auf diesem Computer. Ohne Haken bleiben sie für eine spätere Installation erhalten.",
         });
     }
+
+    /// <summary>
+    /// The switches of the Options step from the install options (installer.json, SETUP-08), each on as its default: the same
+    /// questions ThixLauncher asks before it installs quietly.
+    /// </summary>
+    internal static IEnumerable<MatSetupOption> Options()
+    {
+        var config = InstallerOptions.Config;
+        if (config.Autostart is { } autostart)
+        {
+            yield return MatSetupOption.Autostart("Im Infobereich, ohne Fenster; Verbindungen mit Auto-Verbindung werden aufgebaut") with { IsOn = autostart.Default };
+        }
+
+        if (config.DesktopShortcut is { } shortcut)
+        {
+            yield return MatSetupOption.DesktopShortcut("Ein Startmenü-Eintrag wird immer angelegt") with { IsOn = shortcut.Default };
+        }
+
+        if (config.AutomaticUpdates is { } updates)
+        {
+            yield return MatSetupOption.AutomaticUpdates("Neue Versionen ohne Rückfrage; aktive Tunnel werden danach wieder verbunden") with { IsOn = updates.Default };
+        }
+
+        foreach (var type in config.FileTypes)
+        {
+            yield return new MatSetupOption(FileTypeKey + type.Extension, $"{type.Extension}-Dateien mit ThixTunnel öffnen", type.Name, type.Default);
+        }
+    }
+
+    /// <summary>The answers of the Options step as install choices.</summary>
+    internal static InstallChoices Choices(IReadOnlyDictionary<string, bool> options) => new(
+        options.TryGetValue("shortcut", out var shortcut) ? shortcut : null,
+        options.TryGetValue("autostart", out var autostart) ? autostart : null,
+        options.TryGetValue("updates", out var updates) ? updates : null,
+        InstallerOptions.Config.FileTypes.Where(type => options.GetValueOrDefault(FileTypeKey + type.Extension)).Select(type => type.Extension).ToList());
+
+    private const string FileTypeKey = "type:";
 
     /// <summary>The word mark of the title bar ("Thix" and "Tunnel" in the accent text) for the header of the setup.</summary>
     private static TextBlock WordMark()

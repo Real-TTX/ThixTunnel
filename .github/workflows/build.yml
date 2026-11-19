@@ -151,13 +151,20 @@ jobs:
     if: always() && needs.version.result == 'success' && needs.windows.result == 'success'
     runs-on: ubuntu-latest
     steps:
+      # installer.json: the install options (SETUP-08) go into the manifest as "installer" (ThixLauncher, ThixInstall)
+      - uses: actions/checkout@v4
+        with:
+          path: source
+          sparse-checkout: src/ThixTunnel.Core/installer.json
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
       # The manifest the installed application reads for its update check (UpdateService): "setup"/"sha256" for every
-      # Windows version since 0.1, "packages" for each platform.
+      # Windows version since 0.1, "packages" for each platform, "installer" = what the setup offers (installer.json).
       - name: Write update manifest
         shell: bash
         run: |
@@ -179,6 +186,7 @@ jobs:
             "setup": "ThixTunnelSetup.exe",
             "sha256": "$(sha ThixTunnelSetup.exe)",
             "publishedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "installer": $(cat ../source/src/ThixTunnel.Core/installer.json),
             "packages": {
               "win-x64": { "file": "ThixTunnelSetup.exe", "sha256": "$(sha ThixTunnelSetup.exe)" }${mac}
             }

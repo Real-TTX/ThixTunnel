@@ -2,27 +2,25 @@ using System.Diagnostics;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using ThixTunnel.Core.Infrastructure;
+using ThixTunnel.Core.Models;
 
 namespace ThixTunnel.Core.Business;
 
-/// <summary>What the setup decides on a first installation. An update keeps what is installed.</summary>
-/// <summary>The choices of the setup (SETUP-02): start at sign-in, desktop shortcut, automatic updates.</summary>
-public sealed record InstallOptions(bool StartWithWindows, bool DesktopShortcut, bool InstallUpdatesAutomatically = false);
-
 /// <summary>
-/// Windows only (macOS: the app bundle, MacUpdateService). ThixTunnel installs itself - like the Matgate agent and the
+/// Windows only (macOS: the app bundle, MacAppBundle). ThixTunnel installs itself - like the Matgate agent and the
 /// MatMon setup, without a separate installer tool.
 /// The published ThixTunnel.exe is the setup: started from anywhere else it copies itself to
 /// %LocalAppData%\Programs\ThixTunnel (per user, no administrator rights), creates the Start menu entry, the entry in
-/// "Installierte Apps" and optionally the autostart and a desktop shortcut. "--uninstall" removes every one of them.
+/// "Installierte Apps" and – as the install options say (InstallerOptions, SETUP-08) – the autostart, a desktop shortcut
+/// and automatic updates. "--uninstall" removes every one of them.
 /// User data (%AppData%\ThixTunnel) stays unless the user explicitly deletes it while uninstalling.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public static class InstallService
 {
-    public const string UpdateArgument = UpdateService.WindowsUpdateArgument;
-    public const string UninstallArgument = "--uninstall";
-    public const string QuietArgument = "--quiet";
+    public const string UpdateArgument = InstallerOptions.UpdateArgument;
+    public const string UninstallArgument = InstallerOptions.UninstallArgument;
+    public const string QuietArgument = InstallerOptions.QuietArgument;
     public const string ExecutableName = "ThixTunnel.exe";
 
     /// <summary>A running ThixTunnel listens for this signal and ends itself cleanly (tunnels are remembered for the restart).</summary>
@@ -74,11 +72,13 @@ public static class InstallService
         string.Equals(Path.GetFullPath(path), Path.GetFullPath(InstalledExecutable), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Installs or updates. <paramref name="options"/> null = update: shortcuts and autostart stay as they are.
+    /// Installs or updates with the install options (SETUP-08): what <paramref name="choices"/> leaves open (null, or a value of
+    /// null) an installed ThixTunnel keeps as it is and a first install takes from installer.json.
     /// </summary>
-    public static void Install(string sourceExecutable, InstallOptions? options, Action<string> log)
+    public static void Install(string sourceExecutable, InstallChoices? choices, Action<string> log)
     {
-        var isUpdate = options is null;
+        var isUpdate = IsInstalled;
+        var wanted = (choices ?? new InstallChoices()).Over(isUpdate ? InstallerOptions.Current() : InstallerOptions.Defaults);
         log(isUpdate ? $"Aktualisiere ThixTunnel in {ProgramFolder}" : $"Installiere ThixTunnel nach {ProgramFolder}");
         StopRunningInstances(log);
 
@@ -92,34 +92,12 @@ public static class InstallService
         CreateShortcut(StartMenuShortcut, "SSH-Tunnel verwalten");
         log("Startmenü-Eintrag angelegt");
 
-        var wantsDesktopShortcut = options?.DesktopShortcut ?? HasDesktopShortcut;
-        if (wantsDesktopShortcut)
-        {
-            CreateShortcut(DesktopShortcut, "SSH-Tunnel verwalten");
-            log("Desktop-Verknüpfung angelegt");
-        }
+        // also an update applies them again: the autostart points at the installed file
+        InstallerOptions.Apply(wanted, InstalledExecutable, log);
 
         if (_testLocations is null)
         {
-            // An update keeps the autostart as the user left it, but points it at the installed file.
-            var wantsAutostart = options?.StartWithWindows ?? AutostartService.IsEnabled();
-            if (wantsAutostart)
-            {
-                AutostartService.WriteEntry(InstalledExecutable);
-                log("Autostart bei der Windows-Anmeldung eingerichtet");
-            }
-
             RemoveLegacyInnoSetup(log);
-        }
-
-        if (options is not null)
-        {
-            // The full auto update of the setup's options; an update keeps what the user chose since.
-            DataStore.Update(data =>
-            {
-                data.Settings.CheckForUpdates |= options.InstallUpdatesAutomatically;
-                data.Settings.InstallUpdatesAutomatically = options.InstallUpdatesAutomatically;
-            });
         }
 
         WriteUninstallEntry();
@@ -137,11 +115,8 @@ public static class InstallService
         log("Entferne ThixTunnel");
         StopRunningInstances(log);
 
-        if (_testLocations is null)
-        {
-            AutostartService.RemoveEntry();
-            log("Autostart entfernt");
-        }
+        AutostartService.RemoveEntry();
+        log("Autostart entfernt");
 
         DeleteFile(StartMenuShortcut);
         DeleteFile(DesktopShortcut);
@@ -249,6 +224,19 @@ public static class InstallService
             {
                 Thread.Sleep(500);
             }
+        }
+    }
+
+    /// <summary>The desktop shortcut on or off (install options).</summary>
+    internal static void SetDesktopShortcut(bool wanted)
+    {
+        if (wanted)
+        {
+            CreateShortcut(DesktopShortcut, "SSH-Tunnel verwalten");
+        }
+        else if (HasDesktopShortcut)
+        {
+            DeleteFile(DesktopShortcut);
         }
     }
 

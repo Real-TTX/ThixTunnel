@@ -71,7 +71,7 @@ public partial class App : Application
             return;
         }
 
-        if (OperatingSystem.IsWindows() && RunSetupIfRequested(args))
+        if (RunSetupIfRequested(args))
         {
             return;
         }
@@ -235,18 +235,48 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// The command line of SETUP-05 with the install options of SETUP-08 (InstallerOptions; a wrong value: exit code 2,
+    /// nothing installed).
     /// Windows: the published ThixTunnel.exe is its own setup (InstallService):
     ///  - "--uninstall" (from "Installierte Apps"): the uninstall assistant, or silently with "--quiet".
-    ///  - "--update" (downloaded by the update check): installs itself silently and starts the installed ThixTunnel in the tray.
+    ///  - "--quiet [options]" (ThixLauncher, ThixInstall, an administrator): installs without a window; "--start" starts it in the tray.
+    ///  - "--update [options]" (downloaded by the update check): installs itself silently and starts the installed ThixTunnel in the tray.
     ///  - started anywhere else than the program folder (e.g. from Downloads): the setup assistant.
-    /// A development build (not single-file) always runs as the application.
+    /// Both systems: "--configure [options]" applies the options to the installed ThixTunnel and ends (macOS: ThixLauncher calls
+    /// it after it copied the bundle). A development build (not single-file) runs as the application otherwise.
     /// </summary>
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     private bool RunSetupIfRequested(string[] args)
     {
-        if (args.Contains(InstallService.UninstallArgument))
+        SetupRequest request;
+        try
         {
-            if (args.Contains(InstallService.QuietArgument))
+            request = InstallerOptions.Parse(args);
+        }
+        catch (BusinessException exception)
+        {
+            Log.Warning($"Setup arguments refused: {exception.Message}");
+            Console.Error.WriteLine(exception.Message);
+            EndProcess(2);
+            return true;
+        }
+
+        if (request.Action == SetupAction.Configure)
+        {
+            var executable = OperatingSystem.IsWindows() && File.Exists(InstallService.InstalledExecutable) ? InstallService.InstalledExecutable : ExecutablePath;
+            InstallerOptions.Apply(request.Choices, executable, Log.Info);
+            EndProcess(0);
+            return true;
+        }
+
+        return OperatingSystem.IsWindows() && RunWindowsSetup(request);
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private bool RunWindowsSetup(SetupRequest request)
+    {
+        if (request.Action == SetupAction.Uninstall)
+        {
+            if (request.Quiet)
             {
                 if (InstallService.Uninstall(deleteUserData: false, Log.Info))
                 {
@@ -269,24 +299,28 @@ public partial class App : Application
             return true;
         }
 
-        if (args.Contains(InstallService.UpdateArgument))
+        if (request.Action is SetupAction.Install or SetupAction.Update)
         {
+            var exitCode = 0;
             try
             {
-                InstallService.Install(ExecutablePath, options: null, Log.Info);
+                InstallService.Install(ExecutablePath, request.Choices, Log.Info);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException
-                                                  or System.Runtime.InteropServices.COMException)
+                                                  or System.Runtime.InteropServices.COMException or System.Security.SecurityException)
             {
-                Log.Error("Update failed", exception);
+                Log.Error(request.Action == SetupAction.Update ? "Update failed" : "Quiet install failed", exception);
+                Console.Error.WriteLine(exception.Message);
+                exitCode = 1;
             }
 
-            if (File.Exists(InstallService.InstalledExecutable))
+            // an update starts ThixTunnel again in the tray (its tunnels reconnect); a quiet install only with "--start"
+            if ((request.Action == SetupAction.Update || request.Start) && File.Exists(InstallService.InstalledExecutable))
             {
                 InstallService.StartInstalled(TrayArgument);
             }
 
-            EndProcess(0);
+            EndProcess(exitCode);
             return true;
         }
 

@@ -41,7 +41,10 @@ the system OpenSSH (Windows OpenSSH `ssh.exe`, macOS `/usr/bin/ssh`). The deskto
 
 ```
 src/ThixTunnel.Core  (net10.0, no UI; Windows-only parts behind OperatingSystem checks)
-  Models/            SshProfile, TunnelRoute, AppSettings, AppData (the JSON file), TunnelStatus, ListQuery, BusinessException
+  Models/            SshProfile, TunnelRoute, AppSettings, AppData (the JSON file), TunnelStatus, ListQuery, BusinessException,
+                     InstallerConfig (+ InstallerSwitch, InstallerFileType, InstallChoices, SetupAction, SetupRequest)
+  installer.json     what the setup offers (SETUP-08): desktopShortcut / autostart / automaticUpdates with defaults, "fileTypes": []
+                     (the export ends in .json: no own file type); embedded, and CI copies it into the update manifest as "installer"
   Business/          THE business layer, static classes. Every change calls AccessPolicy first (permission check in the business layer):
                      AccessPolicy (policies LockConfiguration / DenyNetworkBinding / DisableUpdates: Windows HKLM\SOFTWARE\Policies\
                      ThixTunnel, macOS configuration profile info.schmoldt.thixtunnel), ProfileService, RouteService, SettingsService,
@@ -50,7 +53,12 @@ src/ThixTunnel.Core  (net10.0, no UI; Windows-only parts behind OperatingSystem 
                      platform, download, SHA-256), MacAppBundle (macOS: the .app, update = swap the bundle by script),
                      SessionResume (reconnect after an update), TransferService (import/export *.thixtunnel.json, same checks as
                      saving, one atomic write), InstallService (Windows only: self-installing exe, program folder, shortcuts,
-                     "Installierte Apps" entry, uninstall), KeySetupService (password profile -> own ed25519 key via ssh-keygen,
+                     "Installierte Apps" entry, uninstall; Install(source, InstallChoices?) = the given choices over Current()
+                     when installed, else the defaults), InstallerOptions (SETUP-08 of MatDesign, the same contract in every Thix
+                     app: Config from installer.json, Defaults, Parse of --quiet / --update / --configure [--desktop-shortcut=yes|no
+                     --autostart=yes|no --automatic-updates=yes|no --file-types=none|default] [--start] - an unknown option or value
+                     = BusinessException = exit code 2, nothing installed; a bare "--autostart" stays the sign-in start;
+                     ToArguments, Current, Apply), KeySetupService (password profile -> own ed25519 key via ssh-keygen,
                      authorized_keys through the jump hosts at the first manual connect, profile switched to the key; POSIX servers)
   Infrastructure/    DataStore (only the business layer uses it; atomic JSON writes), AppPaths (Windows %AppData%/%LocalAppData%,
                      macOS ~/Library/Application Support), AppInfo (version/channel from assembly metadata; Pin for snapshots), SshConfigWriter
@@ -59,8 +67,9 @@ src/ThixTunnel.Core  (net10.0, no UI; Windows-only parts behind OperatingSystem 
                      SandboxScope (snapshots/UI tests: no policies, autostart entry in memory)
   Business/SampleData the sample profiles, connections and states of the snapshots and UI tests (own data folder only)
 src/ThixTunnel  (Avalonia app on MatDesktop, the same program on Windows and macOS)
-  Program.cs / App.axaml(.cs)  start-up: snapshot mode, askpass mode, setup mode (Windows: --uninstall / --update / single-file exe
-                     outside the program folder), MatTheme with the accent #1A6FD1 and the appearance setting, MatSingleInstance per
+  Program.cs / App.axaml(.cs)  start-up: snapshot mode, askpass mode, setup mode (RunSetupIfRequested: InstallerOptions.Parse,
+                     exit code 2 on a wrong argument; --configure on both systems; Windows: --uninstall [--quiet] / --quiet / --update
+                     (restarts in the tray) / single-file exe outside the program folder), MatTheme with the accent #1A6FD1 and the appearance setting, MatSingleInstance per
                      data folder (Windows: exit signal for the setup), tray / menu bar, Info (TRAY-05), Dock "reopen", network events
   MainWindow         THE window (MatWindow): MatTitleBar (logo + word mark, the state of all tunnels and "Automatik pausieren" in the
                      middle), MatNav (Verbindungen; Einstellungen below the line; version = About at the foot; folds to a rail), the
@@ -70,7 +79,8 @@ src/ThixTunnel  (Avalonia app on MatDesktop, the same program on Windows and mac
                      the settings, by decision of the owner), Settings (tabs Allgemein | Verbindungen | SSH-Profile | Import / Export |
                      Updates | Erweitert; switches apply at once), RouteList / ProfileList (the tabs), TunnelEdit / ProfileEdit (pages
                      with tabs), About. All built in code from the controls below.
-  Setup/             ThixTunnelSetup (Windows): MatSetupWindow for install / update / uninstall (SETUP-01 … SETUP-04)
+  Setup/             ThixTunnelSetup (Windows): MatSetupWindow for install / update / uninstall (SETUP-01 … SETUP-04); its
+                     Options step comes from installer.json (Options / Choices, SETUP-08)
   Controls/          ONE code base per control: ListToolbar (search, filter, sort + direction -> ListQuery), EntityList (+ EntityRow:
                      MatList + MatCardRow, state tint and word, trailing button, chevron), ListLayout / EditLayout (the list page and
                      the create/update page; EditLayout.Run shows a BusinessException at the MatFormField named by FormErrors.Field
@@ -125,7 +135,7 @@ Development builds are never a setup; a run with its own `THIXTUNNEL_DATA_DIR` i
 - `.github/workflows/build.yml`: job `version` (one version for the run), `windows` (windows-latest: build, test without E2E, publish
   win-x64 single file = ThixTunnelSetup.exe), `macos` (macos-latest: build, test, publish osx-arm64 + osx-x64,
   `scripts/package-macos.sh` → ThixTunnel-macOS-<arch>.dmg/.zip), `publish` (manifest `thixtunnel-update.json`: version, channel,
-  buildNumber, setup + sha256 for Windows, `packages` per platform). Push to main/dev uploads the packages, then the manifest, to the
+  buildNumber, setup + sha256 for Windows, `packages` per platform, `installer` = src/ThixTunnel.Core/installer.json). Push to main/dev uploads the packages, then the manifest, to the
   rolling release `release-channel` / `nightly-channel`; main also creates `v<version>` with setup and both dmgs. `publish` needs
   only a green Windows job: when GitHub has no macOS runner ("not acquired … capacity") the release goes out for Windows and the
   manifest names only the macOS packages that were built. Manual runs (workflow_dispatch) on main/dev publish too.

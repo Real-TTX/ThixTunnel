@@ -9,4 +9,9 @@
     <InternalsVisibleTo Include="ThixTunnel.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- What the setup offers (SETUP-08): read by InstallerOptions, published in the update manifest by CI -->
+    <EmbeddedResource Include="installer.json" LogicalName="installer.json" />
+  </ItemGroup>
+
 </Project>

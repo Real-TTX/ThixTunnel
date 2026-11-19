@@ -82,9 +82,23 @@ Jeder Build wird in GitHub Actions für Windows und macOS gebaut, getestet und v
 | `ThixTunnelSetup.exe` | Windows x64 | Setup, Update und Programm in einer Datei |
 | `ThixTunnel-macOS-arm64.dmg` / `-x64.dmg` | macOS (Apple Silicon / Intel) | Erstinstallation: App nach „Programme“ ziehen |
 | `ThixTunnel-macOS-arm64.zip` / `-x64.zip` | macOS | Update-Paket, das eine installierte App selbst lädt |
-| `thixtunnel-update.json` | alle | Update-Manifest: Version, Kanal, Build-Nummer und je Plattform Paket + SHA-256 |
+| `thixtunnel-update.json` | alle | Update-Manifest: Version, Kanal, Build-Nummer, je Plattform Paket + SHA-256 und unter `installer` die Optionen des Setups |
 
 **Windows:** `ThixTunnelSetup.exe` ist das Programm selbst: aus dem Download gestartet, zeigt es den Setup-Assistenten und installiert sich nach `%LocalAppData%\Programs\ThixTunnel`. Ist ThixTunnel schon installiert, wird daraus ein Update (Autostart und Verknüpfungen bleiben, wie sie sind). Mit `--update` läuft es still als Update, mit `--uninstall` als Deinstallation (so steht es unter „Installierte Apps“). Benutzerdaten liegen getrennt unter `%AppData%\ThixTunnel`.
+
+**Ohne Fenster** (ThixLauncher, ThixInstall, Administratoren) – die Optionen des Setups als Argumente (MatDesign SETUP-05/08;
+was angeboten wird, steht in `src/ThixTunnel.Core/installer.json` und im Update-Manifest unter `installer`):
+
+```
+ThixTunnelSetup.exe --quiet --desktop-shortcut=yes --autostart=no --automatic-updates=yes [--start]
+ThixTunnelSetup.exe --update [Optionen]           # stilles Update, startet ThixTunnel danach im Infobereich
+ThixTunnel.exe --configure --autostart=yes        # nur anwenden (auch macOS: …/ThixTunnel.app/Contents/MacOS/ThixTunnel)
+ThixTunnel.exe --uninstall --quiet
+```
+
+Nicht angegebene Optionen: bei der Erstinstallation der Standard (Autostart und automatische Updates an, keine
+Desktop-Verknüpfung), bei einem Update bleibt es, wie es ist. ThixTunnel verknüpft keine Dateitypen (der Export endet auf
+`.json`), `--file-types` kennt daher nur `none` und `default`. Ein falscher Wert bricht mit Exit-Code 2 ab, ohne etwas zu installieren.
 
 **macOS:** `ThixTunnel.app` liegt nach dem Ziehen in „Programme“; Benutzerdaten liegen unter `~/Library/Application Support/ThixTunnel`. Ein Update lädt das Zip, prüft die SHA-256, tauscht nach dem Beenden das App-Paket aus und startet ThixTunnel wieder in der Menüleiste. Die App ist bisher nur ad hoc signiert (ohne Apple-Developer-Konto): Gatekeeper fragt beim ersten Start nach – Rechtsklick › Öffnen, ab macOS 15 unter Systemeinstellungen › Datenschutz & Sicherheit › „Trotzdem öffnen“. Alternativ im Terminal: `xattr -dr com.apple.quarantine /Applications/ThixTunnel.app`.
 

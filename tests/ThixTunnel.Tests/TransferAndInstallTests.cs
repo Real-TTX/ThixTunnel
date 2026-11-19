@@ -21,6 +21,8 @@ public sealed class TransferAndInstallTests : IDisposable
             Registry.CurrentUser.DeleteSubKeyTree(@"Software\ThixTunnelTests", throwOnMissingSubKey: false);
         }
 
+        AutostartService.UseMemoryEntryForTests(null);
+        InstallerOptions.UseConfigForTests(null);
         _data.Dispose();
     }
 
@@ -135,6 +137,62 @@ public sealed class TransferAndInstallTests : IDisposable
         Assert.Throws<BusinessException>(() => TransferService.Import(file, replaceExisting: true));
     }
 
+    [Fact]
+    public void TheEmbeddedInstallerJsonIsWhatTheManifestPublishes()
+    {
+        var config = InstallerOptions.Config;
+
+        Assert.NotNull(config.DesktopShortcut);
+        Assert.NotNull(config.Autostart);
+        Assert.NotNull(config.AutomaticUpdates);
+        Assert.Empty(config.FileTypes); // the export ends in ".json": no file type of its own
+        Assert.Equal<(bool?, bool?, bool?)>((false, true, true), (InstallerOptions.Defaults.DesktopShortcut, InstallerOptions.Defaults.Autostart, InstallerOptions.Defaults.AutomaticUpdates));
+    }
+
+    [Fact]
+    public void TheCommandLineCarriesTheInstallOptionsAndRefusesWhatItDoesNotKnow()
+    {
+        var request = InstallerOptions.Parse(["--quiet", "--desktop-shortcut=yes", "--autostart=no", "--automatic-updates=ja", "--start"]);
+        Assert.Equal(SetupAction.Install, request.Action);
+        Assert.True(request.Quiet);
+        Assert.True(request.Start);
+        Assert.Equal<(bool?, bool?, bool?)>((true, false, true), (request.Choices.DesktopShortcut, request.Choices.Autostart, request.Choices.AutomaticUpdates));
+        Assert.Null(request.Choices.FileTypes);
+        Assert.Equal(["--desktop-shortcut=yes", "--autostart=no", "--automatic-updates=yes"], InstallerOptions.ToArguments(request.Choices));
+
+        Assert.Equal(SetupAction.Update, InstallerOptions.Parse(["--update"]).Action);
+        Assert.Equal(new InstallChoices(), InstallerOptions.Parse(["--update"]).Choices);
+        Assert.Empty(InstallerOptions.Parse(["--configure", "--file-types=none"]).Choices.FileTypes!);
+        Assert.Empty(InstallerOptions.Parse(["--quiet", "--file-types=default"]).Choices.FileTypes!);
+        Assert.Equal(SetupAction.Configure, InstallerOptions.Parse(["--configure", "--autostart=yes"]).Action);
+        Assert.Equal(SetupAction.Uninstall, InstallerOptions.Parse(["--uninstall", "--quiet"]).Action);
+
+        // the start at sign-in ("--autostart" without a value) and the tray start stay what they were
+        Assert.Equal(SetupAction.None, InstallerOptions.Parse(["--autostart"]).Action);
+        Assert.Equal(SetupAction.None, InstallerOptions.Parse(["--tray"]).Action);
+
+        Assert.Throws<BusinessException>(() => InstallerOptions.Parse(["--quiet", "--autostart=vielleicht"]));
+        Assert.Throws<BusinessException>(() => InstallerOptions.Parse(["--quiet", "--file-types=.json"]));
+        Assert.Throws<BusinessException>(() => InstallerOptions.Parse(["--quiet", "--color=blue"]));
+        Assert.Throws<BusinessException>(() => InstallerOptions.Parse(["--tray", "--autostart=yes"]));
+        Assert.Throws<BusinessException>(() => InstallerOptions.Parse(["--uninstall", "--desktop-shortcut=no"]));
+
+        // an option the app does not offer is refused
+        InstallerOptions.UseConfigForTests(InstallerOptions.Config with { DesktopShortcut = null });
+        Assert.Throws<BusinessException>(() => InstallerOptions.Parse(["--quiet", "--desktop-shortcut=yes"]));
+    }
+
+    [WindowsFact]
+    [SupportedOSPlatform("windows")]
+    public void TheSetupAssistantAsksWhatInstallerJsonOffers()
+    {
+        var options = ThixTunnel.Setup.ThixTunnelSetup.Options().ToList();
+
+        Assert.Equal(["autostart:True", "shortcut:False", "updates:True"], options.Select(option => $"{option.Key}:{option.IsOn}"));
+        var choices = ThixTunnel.Setup.ThixTunnelSetup.Choices(new Dictionary<string, bool> { ["autostart"] = false, ["shortcut"] = true, ["updates"] = true });
+        Assert.Equal(["--desktop-shortcut=yes", "--autostart=no", "--automatic-updates=yes", "--file-types=none"], InstallerOptions.ToArguments(choices));
+    }
+
     [WindowsFact]
     [SupportedOSPlatform("windows")]
     public void SetupInstallsUpdatesAndUninstallsWithoutTraces()
@@ -146,26 +204,47 @@ public sealed class TransferAndInstallTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(setup)!);
         File.WriteAllText(setup, "version 1");
 
-        InstallService.Install(setup, new InstallOptions(StartWithWindows: false, DesktopShortcut: true), _ => { });
+        // the autostart entry lives in memory: a test never writes the HKCU Run value
+        AutostartService.UseMemoryEntryForTests(false);
+
+        // first install: what is not given comes from installer.json (automatic updates on)
+        var steps = new List<string>();
+        InstallService.Install(setup, new InstallChoices(DesktopShortcut: true, Autostart: false), steps.Add);
 
         Assert.True(InstallService.IsInstalled);
         Assert.Equal("version 1", File.ReadAllText(InstallService.InstalledExecutable));
         Assert.True(File.Exists(InstallService.StartMenuShortcut));
         Assert.True(InstallService.HasDesktopShortcut);
+        Assert.False(AutostartService.IsEnabled());
+        Assert.True(SettingsService.Get().InstallUpdatesAutomatically);
+        Assert.Contains("Installation abgeschlossen", steps);
         using (var key = Registry.CurrentUser.OpenSubKey(TestUninstallKey))
         {
             Assert.Equal($"\"{InstallService.InstalledExecutable}\" --uninstall", key?.GetValue("UninstallString"));
         }
 
-        // Update: new program file, shortcuts stay.
+        // Update: new program file, shortcuts and choices stay.
         File.WriteAllText(setup, "version 2");
-        InstallService.Install(setup, options: null, _ => { });
+        steps.Clear();
+        InstallService.Install(setup, null, steps.Add);
         Assert.Equal("version 2", File.ReadAllText(InstallService.InstalledExecutable));
         Assert.True(InstallService.HasDesktopShortcut);
+        Assert.False(AutostartService.IsEnabled());
+        Assert.True(SettingsService.Get().InstallUpdatesAutomatically);
+        Assert.Contains("Update abgeschlossen", steps);
+
+        // An update with options ("--update --desktop-shortcut=no --autostart=yes") changes just these.
+        InstallService.Install(setup, InstallerOptions.Parse(["--update", "--desktop-shortcut=no", "--autostart=yes"]).Choices, _ => { });
+        Assert.False(InstallService.HasDesktopShortcut);
+        Assert.True(AutostartService.IsEnabled());
+        Assert.True(SettingsService.Get().InstallUpdatesAutomatically);
+        var current = InstallerOptions.Current();
+        Assert.Equal<(bool?, bool?, bool?)>((false, true, true), (current.DesktopShortcut, current.Autostart, current.AutomaticUpdates));
 
         var removeLater = InstallService.Uninstall(deleteUserData: false, _ => { });
 
         Assert.False(removeLater);
+        Assert.False(AutostartService.IsEnabled());
         Assert.False(InstallService.IsInstalled);
         Assert.False(Directory.Exists(programFolder));
         Assert.False(File.Exists(InstallService.StartMenuShortcut));
