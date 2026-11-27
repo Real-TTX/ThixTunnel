@@ -125,7 +125,7 @@ public static class UpdateService
     /// right afterwards (Windows: the update would end it anyway; macOS: the bundle is replaced once it has ended).
     /// </summary>
     public static async Task DownloadAndStartInstallerAsync(UpdateManifest manifest, IProgress<double>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, bool showWindowAfter = false)
     {
         AccessPolicy.EnsureUpdatesAllowed();
         var package = PackageFor(manifest, PlatformKey);
@@ -166,6 +166,12 @@ public static class UpdateService
         }
 
         Log.Info($"Starting update to {manifest.Version}");
+        // Before the new program starts: on Windows it ends this one at once.
+        if (showWindowAfter)
+        {
+            ShowWindowAfterUpdate();
+        }
+
         if (OperatingSystem.IsMacOS())
         {
             MacAppBundle.StartReplacement(packagePath);
@@ -178,6 +184,38 @@ public static class UpdateService
             WorkingDirectory = AppPaths.UpdateDirectory,
         });
     }
+
+    /// <summary>
+    /// The update was asked for in the window (or the window was open): the ThixTunnel the update starts again shows its window instead
+    /// of waiting in the tray. A marker in the update folder carries this over the restart (the restart itself always says "--tray").
+    /// </summary>
+    public static void ShowWindowAfterUpdate()
+    {
+        Directory.CreateDirectory(AppPaths.UpdateDirectory);
+        File.WriteAllText(ShowMarker, DateTimeOffset.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>True once after an update that should show the window (a marker older than 15 minutes is stale); the marker goes.</summary>
+    public static bool TakeShowWindowAfterUpdate()
+    {
+        if (!File.Exists(ShowMarker))
+        {
+            return false;
+        }
+
+        try
+        {
+            var written = File.GetLastWriteTimeUtc(ShowMarker);
+            File.Delete(ShowMarker);
+            return DateTime.UtcNow - written < TimeSpan.FromMinutes(15);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static string ShowMarker => Path.Combine(AppPaths.UpdateDirectory, "show-window-after-update");
 
     internal static bool IsSafeFileName(string fileName) =>
         fileName.Length > 0 &&

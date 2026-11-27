@@ -93,6 +93,21 @@ public sealed class PlatformTests : IDisposable
     }
 
     [Fact]
+    public void AfterAnUpdateAskedForInTheWindowTheWindowComesBackOnce()
+    {
+        Assert.False(UpdateService.TakeShowWindowAfterUpdate()); // an update in the background: the tray
+
+        UpdateService.ShowWindowAfterUpdate();
+        Assert.True(UpdateService.TakeShowWindowAfterUpdate());
+        Assert.False(UpdateService.TakeShowWindowAfterUpdate()); // once: the next autostart stays in the tray
+
+        // A marker left from long ago (an update that never ran) does not show the window.
+        UpdateService.ShowWindowAfterUpdate();
+        File.SetLastWriteTimeUtc(Directory.GetFiles(AppPaths.UpdateDirectory, "show-window-after-update").Single(), DateTime.UtcNow.AddHours(-1));
+        Assert.False(UpdateService.TakeShowWindowAfterUpdate());
+    }
+
+    [Fact]
     public void TheLaunchAgentStartsThixTunnelInTheBackgroundAtSignIn()
     {
         var plist = AutostartService.LaunchAgent("/Applications/Thix & Tunnel.app/Contents/MacOS/ThixTunnel");

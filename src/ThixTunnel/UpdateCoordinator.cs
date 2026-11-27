@@ -37,10 +37,13 @@ internal static class UpdateCoordinator
         return result;
     }
 
-    /// <summary>Downloads and starts the installation, then ends ThixTunnel; the update starts it again.</summary>
-    public static async Task InstallAsync(UpdateManifest manifest, IProgress<double>? progress = null)
+    /// <summary>
+    /// Downloads and starts the installation, then ends ThixTunnel; the update starts it again - with its window when the update was
+    /// asked for there (<paramref name="showWindow"/>) or the window was open, else quietly in the tray.
+    /// </summary>
+    public static async Task InstallAsync(UpdateManifest manifest, IProgress<double>? progress = null, bool showWindow = false)
     {
-        await UpdateService.DownloadAndStartInstallerAsync(manifest, progress);
+        await UpdateService.DownloadAndStartInstallerAsync(manifest, progress, showWindowAfter: showWindow || App.Instance.IsMainWindowShown);
         SessionResume.RememberActiveRoutes();
         ((App)Application.Current!).ExitApplication();
     }

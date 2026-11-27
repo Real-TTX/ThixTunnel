@@ -50,7 +50,7 @@ Bestehende Verbindungen eines anderen Rechners übernimmst du über **Einstellun
 | Aufräumen | Windows: alle ssh-Prozesse hängen an einem Job-Objekt – auch nach einem Absturz bleibt kein Tunnel zurück. macOS: beim Beenden werden alle getrennt, nach einem Absturz räumt der nächste Start übrig gebliebene ssh-Prozesse seiner Verbindungen ab. |
 | Autostart | „Bei der Anmeldung starten“ (Windows: HKCU\…\Run, macOS: LaunchAgent in `~/Library/LaunchAgents`): ThixTunnel startet unsichtbar im Tray bzw. in der Menüleiste und baut die Verbindungen mit Auto-Verbindung auf. |
 | Setup | Windows: die Programmdatei ist ihr eigenes Setup (wie beim Matgate-Agent): Installation für das eigene Benutzerkonto ohne Adminrechte, Startmenü, optionale Desktop-Verknüpfung, optionaler Autostart, optional voll-automatische Updates, Eintrag unter „Installierte Apps“; Deinstallation mit Rückfrage zu den Benutzerdaten. macOS: `ThixTunnel.app` aus dem Disk-Image nach „Programme“ ziehen, zum Entfernen in den Papierkorb. |
-| Updates (OTA) | Prüfung beim Start und alle 6 Stunden, Installation mit einem Klick – Windows ersetzt die Programmdatei, macOS das App-Paket. Optional **voll-automatisch**: installiert selbst, startet neu und verbindet vorher aktive Tunnel wieder. |
+| Updates (OTA) | Prüfung beim Start und alle 6 Stunden, Installation mit einem Klick – Windows ersetzt die Programmdatei, macOS das App-Paket. Nach „Update installieren“ im Fenster (oder bei offenem Fenster) kommt ThixTunnel mit seinem Fenster wieder, sonst still im Infobereich. Optional **voll-automatisch**: installiert selbst, startet neu und verbindet vorher aktive Tunnel wieder. |
 | Richtlinien | Administratoren können sperren: `LockConfiguration`, `DenyNetworkBinding` (nur Loopback), `DisableUpdates` – Windows unter `HKLM\SOFTWARE\Policies\ThixTunnel` (DWORD = 1), macOS per Konfigurationsprofil für die Domain `info.schmoldt.thixtunnel` (Wert `true`). Geprüft wird im Business-Layer. |
 
 | Verbindung bearbeiten | Einstellungen › Verbindungen |
@@ -91,7 +91,7 @@ was angeboten wird, steht in `src/ThixTunnel.Core/installer.json` und im Update-
 
 ```
 ThixTunnelSetup.exe --quiet --desktop-shortcut=yes --autostart=no --automatic-updates=yes [--start]
-ThixTunnelSetup.exe --update [Optionen]           # stilles Update, startet ThixTunnel danach im Infobereich
+ThixTunnelSetup.exe --update [Optionen]           # stilles Update, startet ThixTunnel danach im Infobereich (mit Fenster, wenn das Update im Fenster angestoßen wurde)
 ThixTunnel.exe --configure --autostart=yes        # nur anwenden (auch macOS: …/ThixTunnel.app/Contents/MacOS/ThixTunnel)
 ThixTunnel.exe --uninstall --quiet
 ```
@@ -100,7 +100,7 @@ Nicht angegebene Optionen: bei der Erstinstallation der Standard (Autostart und 
 Desktop-Verknüpfung), bei einem Update bleibt es, wie es ist. ThixTunnel verknüpft keine Dateitypen (der Export endet auf
 `.json`), `--file-types` kennt daher nur `none` und `default`. Ein falscher Wert bricht mit Exit-Code 2 ab, ohne etwas zu installieren.
 
-**macOS:** `ThixTunnel.app` liegt nach dem Ziehen in „Programme“; Benutzerdaten liegen unter `~/Library/Application Support/ThixTunnel`. Ein Update lädt das Zip, prüft die SHA-256, tauscht nach dem Beenden das App-Paket aus und startet ThixTunnel wieder in der Menüleiste. Die App ist bisher nur ad hoc signiert (ohne Apple-Developer-Konto): Gatekeeper fragt beim ersten Start nach – Rechtsklick › Öffnen, ab macOS 15 unter Systemeinstellungen › Datenschutz & Sicherheit › „Trotzdem öffnen“. Alternativ im Terminal: `xattr -dr com.apple.quarantine /Applications/ThixTunnel.app`.
+**macOS:** `ThixTunnel.app` liegt nach dem Ziehen in „Programme“; Benutzerdaten liegen unter `~/Library/Application Support/ThixTunnel`. Ein Update lädt das Zip, prüft die SHA-256, tauscht nach dem Beenden das App-Paket aus und startet ThixTunnel wieder in der Menüleiste (mit Fenster, wenn das Update im Fenster angestoßen wurde). Die App ist bisher nur ad hoc signiert (ohne Apple-Developer-Konto): Gatekeeper fragt beim ersten Start nach – Rechtsklick › Öffnen, ab macOS 15 unter Systemeinstellungen › Datenschutz & Sicherheit › „Trotzdem öffnen“. Alternativ im Terminal: `xattr -dr com.apple.quarantine /Applications/ThixTunnel.app`.
 
 Eine installierte Version prüft nur ihren eigenen Kanal und lädt nur das Paket ihrer Plattform. Benutzerdaten bleiben bei Updates erhalten.
 

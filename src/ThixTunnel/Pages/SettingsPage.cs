@@ -385,7 +385,7 @@ public sealed class SettingsPage : UserControl, IRefreshable
         _updateStatus.Show($"Lade Version {_availableUpdate.Version} …", InfoSeverity.Info);
         try
         {
-            await UpdateCoordinator.InstallAsync(_availableUpdate, new Progress<double>(value => _download.Value = value));
+            await UpdateCoordinator.InstallAsync(_availableUpdate, new Progress<double>(value => _download.Value = value), showWindow: true);
         }
         catch (Exception exception) when (exception is BusinessException or HttpRequestException or IOException)
         {

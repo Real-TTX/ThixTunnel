@@ -50,7 +50,8 @@ src/ThixTunnel.Core  (net10.0, no UI; Windows-only parts behind OperatingSystem 
                      ThixTunnel, macOS configuration profile info.schmoldt.thixtunnel), ProfileService, RouteService, SettingsService,
                      AutostartService (Windows HKCU Run, macOS LaunchAgent; "--autostart"), TunnelManager (sessions, states,
                      retries, pause, leftover ssh processes after a crash on macOS), UpdateService (manifest with one package per
-                     platform, download, SHA-256), MacAppBundle (macOS: the .app, update = swap the bundle by script),
+                     platform, download, SHA-256; the restart says "--tray", asked for in the window or with the window open
+                     the marker "show-window-after-update" in the update folder brings the window back), MacAppBundle (macOS: the .app, update = swap the bundle by script),
                      SessionResume (reconnect after an update), TransferService (import/export *.thixtunnel.json, same checks as
                      saving, one atomic write), InstallService (Windows only: self-installing exe, program folder, shortcuts,
                      "Installierte Apps" entry, uninstall; Install(source, InstallChoices?) = the given choices over Current()
